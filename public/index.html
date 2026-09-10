@@ -22,6 +22,11 @@
         th { background-color: #f7fafc; color: #4a5568; }
         .flex-group { display: flex; gap: 10px; }
     </style>
+
+    <!-- Supabase Client & jsPDF Libraries via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 
@@ -61,7 +66,7 @@
         <button id="downloadPdfBtn" class="btn btn-blue">Download PDF Report</button>
     </div>
 
-    <!-- Expense History -->
+    <!-- Expense History Table -->
     <div class="card">
         <h3>Expense History</h3>
         <table>
@@ -73,13 +78,11 @@
                 </tr>
             </thead>
             <tbody id="expenseList">
-                <!-- Records dynamically populated -->
             </tbody>
         </table>
     </div>
 </div>
 
-<!-- Link External JavaScript File -->
 <script src="app.js"></script>
 </body>
 </html>
