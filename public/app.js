@@ -1,8 +1,8 @@
 // -------------------------------------------------------------
 // 1. SUPABASE CONFIGURATION (Direct Client Setup)
 // -------------------------------------------------------------
-const SUPABASE_URL = "https://your-supabase-url.supabase.co"; // <-- Apni URL Daalein
-const SUPABASE_ANON_KEY = "your-supabase-anon-key";          // <-- Apni Anon Key Daalein
+const SUPABASE_URL = "https://gmsapmodgwhmsgmgdzfm.supabase.co"; // <-- Apni URL Daalein
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdtc2FwbW9kZ3dobXNnbWdkemZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNTEyMzAsImV4cCI6MjEwNDYyNzIzMH0.XJm5a28xV-wF9_y7F4q8JiS73Ui8rFIczUDb63WJ1RM";          // <-- Apni Anon Key Daalein
 
 const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
