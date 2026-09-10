@@ -1,0 +1,13 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/expenses",
+      "destination": "/api/expenses.js"
+    },
+    {
+      "source": "/api/pdf",
+      "destination": "/api/pdf.js"
+    }
+  ]
+}
