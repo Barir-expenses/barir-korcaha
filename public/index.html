@@ -23,7 +23,7 @@
         .flex-group { display: flex; gap: 10px; }
     </style>
 
-    <!-- Supabase Client & jsPDF Libraries via CDN -->
+    <!-- Essential Libraries via CDN -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
@@ -33,7 +33,7 @@
 <div class="container">
     <h2>💰 Daily Expense Tracker</h2>
 
-    <!-- Add Expense Form -->
+    <!-- Expense Form -->
     <div class="card">
         <h3>Add Expense</h3>
         <form id="expenseForm">
@@ -50,7 +50,7 @@
         </form>
     </div>
 
-    <!-- Export PDF Section -->
+    <!-- Download PDF Form -->
     <div class="card">
         <h3>Download Report PDF</h3>
         <div class="flex-group">
@@ -66,7 +66,7 @@
         <button id="downloadPdfBtn" class="btn btn-blue">Download PDF Report</button>
     </div>
 
-    <!-- Expense History Table -->
+    <!-- History Table -->
     <div class="card">
         <h3>Expense History</h3>
         <table>
