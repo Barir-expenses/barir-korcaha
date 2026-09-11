@@ -177,7 +177,7 @@ if (expenseForm) {
     });
 }
 
-// Category Tag Helper - General aur Travel tags bilkul hata diye gaye hain
+// Category Tag Helper - General aur Travel tags bilkul hata diye gaye hain[cite: 2]
 function getCategoryTag(title) {
     const t = title.toLowerCase();
     if (t.includes('rent') || t.includes('room') || t.includes('house') || t.includes('flat')) return '[RENT] ';
@@ -188,10 +188,10 @@ function getCategoryTag(title) {
     if (t.includes('maid') || t.includes('cook') || t.includes('clean') || t.includes('wash')) return '[MAINT] ';
     if (t.includes('gas') || t.includes('cylinder')) return '[GAS] ';
     
-    return ''; // Baki cases me koi tag nahi judega
+    return ''; // Baki cases me koi tag nahi judega[cite: 2]
 }
 
-// Custom Font Loader Helper
+// Custom Font Loader Helper[cite: 2]
 async function loadFontAsBase64(url) {
     const response = await fetch(url);
     const blob = await response.blob();
@@ -202,7 +202,7 @@ async function loadFontAsBase64(url) {
     });
 }
 
-// PDF GENERATOR WITH FIXED SPACING & NO GENERAL/TRAVEL TAGS
+// ADVANCED HIGH-END PDF GENERATOR
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 if (downloadPdfBtn) {
     downloadPdfBtn.addEventListener('click', async () => {
@@ -276,75 +276,76 @@ if (downloadPdfBtn) {
                 groupedMap[titleKey].count += 1;
             });
 
-            // 1. BRAND HEADER
+            // 1. TOP ACCENT STRIPE
+            doc.setFillColor(15, 23, 42); 
+            doc.rect(0, 0, 210, 5, 'F');
+            doc.setFillColor(16, 185, 129); 
+            doc.rect(0, 5, 210, 1.5, 'F');
+
+            // 2. BRAND HEADER
             doc.setFont(activeFont, "bold");
             doc.setFontSize(22);
             doc.setTextColor(15, 23, 42); 
-            doc.text("BARIR KORCHA", 14, 20);
+            doc.text("BARIR KORCHA", 14, 22);
 
-            doc.setFontSize(8.5);
-            doc.setFont(activeFont, "bold");
-            doc.setTextColor(71, 85, 105);
-            doc.text("EXPENSE STATEMENT & LEDGER", 14, 26);
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text("FINANCIAL STATEMENT & LEDGER REPORT", 14, 27);
 
-            // CURVED META CARD
+            // 3. META DATA CARD
             doc.setFillColor(248, 250, 252);
-            doc.setDrawColor(203, 213, 225);
-            doc.setLineWidth(0.3);
-            doc.roundedRect(130, 10, 66, 22, 4, 4, 'FD');
+            doc.setDrawColor(226, 232, 240);
+            doc.setLineWidth(0.4);
+            doc.roundedRect(128, 12, 68, 22, 3, 3, 'FD');
 
             doc.setFontSize(7.5);
-            doc.setFont(activeFont, "bold");
-            doc.setTextColor(71, 85, 105);
-            doc.text("PERIOD:", 134, 16);
-            doc.text("DATE:", 134, 21);
-            doc.text("REF NO:", 134, 26);
+            doc.setTextColor(100, 116, 139);
+            doc.text("STATEMENT PERIOD", 132, 18);
+            doc.text("GENERATED ON", 132, 23);
+            doc.text("REFERENCE NO", 132, 28);
 
+            doc.setFontSize(8);
             doc.setTextColor(15, 23, 42);
-            doc.text(periodText, 153, 16);
-            doc.text(generatedDate, 153, 21);
-            doc.text(docRef, 153, 26);
+            doc.text(periodText, 163, 18);
+            doc.text(generatedDate, 163, 23);
+            doc.text(docRef, 163, 28);
 
-            // 2. CURVED SUMMARY CARDS
-            const rx = 4;
+            // 4. METRIC KPI CARDS
+            const rx = 3;
 
             doc.setFillColor(248, 250, 252);
-            doc.setDrawColor(203, 213, 225);
+            doc.setDrawColor(226, 232, 240);
             doc.roundedRect(14, 38, 56, 20, rx, rx, 'FD');
-            doc.setFontSize(7.5);
-            doc.setFont(activeFont, "bold");
-            doc.setTextColor(71, 85, 105);
-            doc.text("TOTAL TRANSACTIONS", 19, 45);
-            doc.setFontSize(11);
+            doc.setFontSize(7);
+            doc.setTextColor(100, 116, 139);
+            doc.text("TOTAL TRANSACTIONS", 18, 44);
+            doc.setFontSize(12);
             doc.setTextColor(15, 23, 42);
-            doc.text(`${data.length} RECORDS`, 19, 52);
+            doc.text(`${data.length} Records`, 18, 52);
 
             doc.setFillColor(248, 250, 252);
             doc.roundedRect(76, 38, 56, 20, rx, rx, 'FD');
-            doc.setFontSize(7.5);
-            doc.setFont(activeFont, "bold");
-            doc.setTextColor(71, 85, 105);
-            doc.text("UNIQUE CATEGORIES", 81, 45);
-            doc.setFontSize(11);
-            doc.setTextColor(15, 23, 42);
-            doc.text(`${Object.keys(groupedMap).length} ITEMS`, 81, 52);
-
-            doc.setFillColor(254, 242, 242);
-            doc.setDrawColor(252, 165, 165);
-            doc.roundedRect(138, 38, 58, 20, rx, rx, 'FD');
-            doc.setFontSize(7.5);
-            doc.setFont(activeFont, "bold");
-            doc.setTextColor(185, 28, 28);
-            doc.text("TOTAL SPENT", 143, 45);
+            doc.setFontSize(7);
+            doc.setTextColor(100, 116, 139);
+            doc.text("CATEGORIES ENGAGED", 80, 44);
             doc.setFontSize(12);
-            doc.setTextColor(153, 27, 27);
-            doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 143, 52);
-
-            // 3. LEDGER TABLE SECTION (Optimized Spacing)
-            doc.setFontSize(10.5);
-            doc.setFont(activeFont, "bold");
             doc.setTextColor(15, 23, 42);
-            doc.text("EXPENSE BREAKDOWN", 14, 67);
+            doc.text(`${Object.keys(groupedMap).length} Items`, 80, 52);
+
+            doc.setFillColor(240, 253, 244);
+            doc.setDrawColor(187, 247, 208);
+            doc.roundedRect(138, 38, 58, 20, rx, rx, 'FD');
+            doc.setFontSize(7);
+            doc.setTextColor(22, 101, 52);
+            doc.text("TOTAL NET EXPENSE", 142, 44);
+            doc.setFontSize(12);
+            doc.setTextColor(21, 128, 61);
+            doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 142, 52);
+
+            // 5. LEDGER TABLE SECTION
+            doc.setFontSize(10);
+            doc.setTextColor(15, 23, 42);
+            doc.text("ITEMIZED BREAKDOWN", 14, 67);
 
             const tableRows = Object.keys(groupedMap).map((title, idx) => {
                 const totalAmt = groupedMap[title].totalAmount;
@@ -354,54 +355,70 @@ if (downloadPdfBtn) {
                 return [
                     `#${String(idx + 1).padStart(2, '0')}`,
                     `${tag}${title}`,
-                    `${count} ${count > 1 ? 'ENTRIES' : 'ENTRY'}`,
+                    `${count} ${count > 1 ? 'Entries' : 'Entry'}`,
                     `₹${totalAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                 ];
             });
 
             doc.autoTable({
                 startY: 71,
-                head: [['#', 'EXPENSE DETAILS', 'FREQUENCY', 'TOTAL AMOUNT']],
+                head: [['NO.', 'EXPENSE CATEGORY & DESCRIPTION', 'FREQUENCY', 'AMOUNT (INR)']],
                 body: tableRows,
-                theme: 'striped',
+                theme: 'grid',
                 headStyles: { 
                     fillColor: [15, 23, 42], 
                     textColor: [255, 255, 255],
                     fontStyle: 'bold',
                     font: activeFont,
-                    fontSize: 8.5,
-                    cellPadding: 4
+                    fontSize: 8,
+                    cellPadding: 4,
+                    lineColor: [15, 23, 42]
                 },
                 bodyStyles: { 
                     font: activeFont,
                     fontStyle: 'bold',
                     fontSize: 8.5, 
-                    textColor: [15, 23, 42],
-                    cellPadding: 3.8
+                    textColor: [30, 41, 59],
+                    cellPadding: 3.5,
+                    lineColor: [241, 245, 249]
                 },
                 alternateRowStyles: { fillColor: [248, 250, 252] },
                 columnStyles: {
-                    0: { cellWidth: 12, halign: 'center', fontStyle: 'bold', textColor: [71, 85, 105] },
-                    1: { cellWidth: 105, fontStyle: 'bold' }, // Expands details area
-                    2: { cellWidth: 28, halign: 'center', fontStyle: 'bold' },
-                    3: { cellWidth: 37, halign: 'right', fontStyle: 'bold', textColor: [185, 28, 28] } // Clean Right-Alignment
+                    0: { cellWidth: 14, halign: 'center', textColor: [100, 116, 139] },
+                    1: { cellWidth: 104 },
+                    2: { cellWidth: 30, halign: 'center' },
+                    3: { cellWidth: 34, halign: 'right', textColor: [185, 28, 28] }
                 },
                 margin: { left: 14, right: 14 }
             });
 
-            // 4. FOOTER
+            // 6. BOTTOM SUMMARY BANNER
+            const finalY = doc.lastAutoTable.finalY + 6;
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(226, 232, 240);
+            doc.roundedRect(14, finalY, 182, 12, 2, 2, 'FD');
+            
+            doc.setFontSize(8.5);
+            doc.setTextColor(15, 23, 42);
+            doc.text("GRAND TOTAL SPENT", 20, finalY + 7.5);
+            
+            doc.setFontSize(10);
+            doc.setTextColor(185, 28, 28);
+            doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 188, finalY + 7.5, { align: 'right' });
+
+            // 7. FOOTER
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
                 
-                doc.setDrawColor(203, 213, 225);
-                doc.line(14, 275, 196, 275);
+                doc.setDrawColor(226, 232, 240);
+                doc.line(14, 276, 196, 276);
 
-                doc.setFontSize(8);
+                doc.setFontSize(7.5);
                 doc.setFont(activeFont, "bold");
-                doc.setTextColor(100, 116, 139);
-                doc.text("THIS IS A COMPUTER-GENERATED STATEMENT FROM BARIR KORCHA.", 14, 282);
-                doc.text(`PAGE ${i} OF ${pageCount}`, 178, 282);
+                doc.setTextColor(148, 163, 184);
+                doc.text("CONFIDENTIAL  |  GENERATED VIA BARIR KORCHA SYSTEM", 14, 282);
+                doc.text(`PAGE ${i} OF ${pageCount}`, 196, 282, { align: 'right' });
             }
 
             const fileName = reportType === 'monthly' ? `BARIR_KORCHA_${monthNames[month]}_${year}.pdf` : `BARIR_KORCHA_${year}.pdf`;
