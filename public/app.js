@@ -16,6 +16,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const monthSelect = document.getElementById('pdfMonth');
     if (monthSelect) monthSelect.value = new Date().getMonth() + 1;
 
+    const specificDateInput = document.getElementById('pdfSpecificDate');
+    if (specificDateInput) specificDateInput.valueAsDate = new Date();
+
     loadExpenses();
     loadExpenseSuggestions();
 
@@ -52,13 +55,16 @@ document.addEventListener('DOMContentLoaded', () => {
 function handleReportTypeToggle() {
     const reportTypeSelect = document.getElementById('reportType');
     const monthlyGroup = document.getElementById('monthlyGroup');
-    if (!monthlyGroup || !reportTypeSelect) return;
+    const yearlyGroup = document.getElementById('yearlyGroup');
+    const specificDateGroup = document.getElementById('specificDateGroup');
 
-    if (reportTypeSelect.value === 'monthly') {
-        monthlyGroup.style.display = 'block';
-    } else {
-        monthlyGroup.style.display = 'none';
-    }
+    if (!reportTypeSelect) return;
+
+    const val = reportTypeSelect.value;
+
+    if (monthlyGroup) monthlyGroup.style.display = (val === 'monthly') ? 'block' : 'none';
+    if (yearlyGroup) yearlyGroup.style.display = (val === 'monthly' || val === 'yearly') ? 'block' : 'none';
+    if (specificDateGroup) specificDateGroup.style.display = (val === 'specific') ? 'block' : 'none';
 }
 
 async function loadExpenses() {
@@ -177,7 +183,6 @@ if (expenseForm) {
     });
 }
 
-// Category Tag Helper - General aur Travel tags bilkul hata diye gaye hain[cite: 2]
 function getCategoryTag(title) {
     const t = title.toLowerCase();
     if (t.includes('rent') || t.includes('room') || t.includes('house') || t.includes('flat')) return '[RENT] ';
@@ -188,10 +193,9 @@ function getCategoryTag(title) {
     if (t.includes('maid') || t.includes('cook') || t.includes('clean') || t.includes('wash')) return '[MAINT] ';
     if (t.includes('gas') || t.includes('cylinder')) return '[GAS] ';
     
-    return ''; // Baki cases me koi tag nahi judega[cite: 2]
+    return '';
 }
 
-// Custom Font Loader Helper[cite: 2]
 async function loadFontAsBase64(url) {
     const response = await fetch(url);
     const blob = await response.blob();
@@ -202,40 +206,63 @@ async function loadFontAsBase64(url) {
     });
 }
 
-// ADVANCED HIGH-END PDF GENERATOR
+// PDF GENERATOR (SUPPORTING SPECIFIC DATE / MONTHLY / YEARLY)
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 if (downloadPdfBtn) {
     downloadPdfBtn.addEventListener('click', async () => {
         const reportTypeSelect = document.getElementById('reportType');
         const monthSelect = document.getElementById('pdfMonth');
         const yearInput = document.getElementById('pdfYear');
+        const specificDateInput = document.getElementById('pdfSpecificDate');
 
         const reportType = reportTypeSelect ? reportTypeSelect.value : 'monthly';
         const month = monthSelect ? monthSelect.value : '';
         const year = yearInput ? yearInput.value : '';
-
-        if (!year) {
-            alert('Kripya Year enter karein (e.g. 2026).');
-            return;
-        }
+        const targetDate = specificDateInput ? specificDateInput.value : '';
 
         try {
             let query = supabaseClient.from('expenses').select('*');
+            let periodText = '';
+            let fileName = '';
 
-            if (reportType === 'monthly' && month) {
+            if (reportType === 'specific') {
+                if (!targetDate) {
+                    alert('Kripya specific date select karein.');
+                    return;
+                }
+                query = query.eq('expense_date', targetDate);
+                
+                const dObj = new Date(targetDate);
+                periodText = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+                fileName = `BARIR_KORCHA_DATE_${targetDate}.pdf`;
+            } else if (reportType === 'monthly') {
+                if (!year || !month) {
+                    alert('Kripya Month aur Year select karein.');
+                    return;
+                }
                 const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
                 const lastDay = new Date(year, month, 0).getDate();
                 const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
                 query = query.gte('expense_date', startDate).lte('expense_date', endDate);
+
+                const monthNames = ["", "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+                periodText = `${monthNames[month]} ${year}`;
+                fileName = `BARIR_KORCHA_${monthNames[month]}_${year}.pdf`;
             } else {
+                if (!year) {
+                    alert('Kripya Year enter karein (e.g. 2026).');
+                    return;
+                }
                 query = query.gte('expense_date', `${year}-01-01`).lte('expense_date', `${year}-12-31`);
+                periodText = `YEAR ${year}`;
+                fileName = `BARIR_KORCHA_${year}.pdf`;
             }
 
             const { data, error } = await query.order('expense_date', { ascending: true });
 
             if (error) throw error;
             if (!data || data.length === 0) {
-                alert(`Selected duration ke liye koi data nahi milaa.`);
+                alert(`Selected date/duration ke liye koi records nahi mile.`);
                 return;
             }
 
@@ -255,9 +282,6 @@ if (downloadPdfBtn) {
             }
 
             const activeFont = doc.getFont().fontName;
-
-            const monthNames = ["", "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
-            const periodText = reportType === 'monthly' ? `${monthNames[month]} ${year}` : `YEAR ${year}`;
             const generatedDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
             const docRef = `BK-${Math.floor(100000 + Math.random() * 900000)}`;
 
@@ -276,13 +300,12 @@ if (downloadPdfBtn) {
                 groupedMap[titleKey].count += 1;
             });
 
-            // 1. TOP ACCENT STRIPE
+            // BRAND HEADER
             doc.setFillColor(15, 23, 42); 
             doc.rect(0, 0, 210, 5, 'F');
             doc.setFillColor(16, 185, 129); 
             doc.rect(0, 5, 210, 1.5, 'F');
 
-            // 2. BRAND HEADER
             doc.setFont(activeFont, "bold");
             doc.setFontSize(22);
             doc.setTextColor(15, 23, 42); 
@@ -290,9 +313,10 @@ if (downloadPdfBtn) {
 
             doc.setFontSize(8);
             doc.setTextColor(100, 116, 139);
-            doc.text("FINANCIAL STATEMENT & LEDGER REPORT", 14, 27);
+            const reportSubTitle = reportType === 'specific' ? "SPECIFIC DATE EXPENSE STATEMENT" : "FINANCIAL STATEMENT & LEDGER REPORT";
+            doc.text(reportSubTitle, 14, 27);
 
-            // 3. META DATA CARD
+            // META CARD
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(226, 232, 240);
             doc.setLineWidth(0.4);
@@ -300,7 +324,7 @@ if (downloadPdfBtn) {
 
             doc.setFontSize(7.5);
             doc.setTextColor(100, 116, 139);
-            doc.text("STATEMENT PERIOD", 132, 18);
+            doc.text("STATEMENT DATE", 132, 18);
             doc.text("GENERATED ON", 132, 23);
             doc.text("REFERENCE NO", 132, 28);
 
@@ -310,7 +334,7 @@ if (downloadPdfBtn) {
             doc.text(generatedDate, 163, 23);
             doc.text(docRef, 163, 28);
 
-            // 4. METRIC KPI CARDS
+            // KPI CARDS
             const rx = 3;
 
             doc.setFillColor(248, 250, 252);
@@ -342,7 +366,7 @@ if (downloadPdfBtn) {
             doc.setTextColor(21, 128, 61);
             doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 142, 52);
 
-            // 5. LEDGER TABLE SECTION
+            // TABLE
             doc.setFontSize(10);
             doc.setTextColor(15, 23, 42);
             doc.text("ITEMIZED BREAKDOWN", 14, 67);
@@ -392,7 +416,7 @@ if (downloadPdfBtn) {
                 margin: { left: 14, right: 14 }
             });
 
-            // 6. BOTTOM SUMMARY BANNER
+            // SUMMARY
             const finalY = doc.lastAutoTable.finalY + 6;
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(226, 232, 240);
@@ -406,7 +430,7 @@ if (downloadPdfBtn) {
             doc.setTextColor(185, 28, 28);
             doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 188, finalY + 7.5, { align: 'right' });
 
-            // 7. FOOTER
+            // FOOTER
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
@@ -421,7 +445,6 @@ if (downloadPdfBtn) {
                 doc.text(`PAGE ${i} OF ${pageCount}`, 196, 282, { align: 'right' });
             }
 
-            const fileName = reportType === 'monthly' ? `BARIR_KORCHA_${monthNames[month]}_${year}.pdf` : `BARIR_KORCHA_${year}.pdf`;
             doc.save(fileName);
 
             const drawer = document.getElementById('drawerMenu');
