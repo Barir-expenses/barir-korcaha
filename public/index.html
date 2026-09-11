@@ -180,10 +180,19 @@
             <button class="close-btn" id="closeDrawer">✕</button>
         </div>
         
+        <!-- Report Type Select -->
         <div class="form-group">
+            <label>Report Type</label>
+            <select id="reportType">
+                <option value="monthly">Monthly Report</option>
+                <option value="yearly">Yearly Report</option>
+            </select>
+        </div>
+
+        <!-- Month Dropdown (Toggles on Monthly Selection) -->
+        <div class="form-group" id="monthlyGroup">
             <label>Select Month</label>
             <select id="pdfMonth">
-                <option value="">All Months</option>
                 <option value="1">January</option>
                 <option value="2">February</option>
                 <option value="3">March</option>
@@ -199,10 +208,12 @@
             </select>
         </div>
 
+        <!-- Dynamic Year Number Input -->
         <div class="form-group">
-            <label>Select Year</label>
-            <select id="pdfYear"></select>
+            <label>Enter Year</label>
+            <input type="number" id="pdfYear" placeholder="e.g. 2026 or 3000" min="1000" max="9999">
         </div>
+
         <button id="downloadPdfBtn" class="btn">📄 Get PDF Report</button>
     </div>
 
