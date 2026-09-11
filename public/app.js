@@ -9,7 +9,14 @@ let editingExpenseId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('expense_date').valueAsDate = new Date();
-    populateYearDropdown();
+    
+    // Default Values: Current Year & Current Month
+    const yearInput = document.getElementById('pdfYear');
+    if (yearInput) yearInput.value = new Date().getFullYear();
+
+    const monthSelect = document.getElementById('pdfMonth');
+    if (monthSelect) monthSelect.value = new Date().getMonth() + 1;
+
     loadExpenses();
     loadExpenseSuggestions();
 
@@ -22,6 +29,13 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('closeDrawer').addEventListener('click', () => drawer.classList.remove('active'));
     }
 
+    // Toggle Monthly vs Yearly fields in Drawer
+    const reportTypeSelect = document.getElementById('reportType');
+    if (reportTypeSelect) {
+        reportTypeSelect.addEventListener('change', handleReportTypeToggle);
+        handleReportTypeToggle(); // Initial setup on page load
+    }
+
     // Optional Filter Search Event Listener
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
@@ -29,20 +43,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Dynamic Years Generator (Past 5 years to Current Year)
-function populateYearDropdown() {
-    const yearSelect = document.getElementById('pdfYear');
-    if (!yearSelect) return;
-    
-    const currentYear = new Date().getFullYear();
-    yearSelect.innerHTML = '';
+// Toggle Month dropdown based on Monthly/Yearly selection
+function handleReportTypeToggle() {
+    const reportType = document.getElementById('reportType').value;
+    const monthlyGroup = document.getElementById('monthlyGroup');
+    if (!monthlyGroup) return;
 
-    for (let i = currentYear - 5; i <= currentYear; i++) {
-        const option = document.createElement('option');
-        option.value = i;
-        option.textContent = i;
-        if (i === currentYear) option.selected = true;
-        yearSelect.appendChild(option);
+    if (reportType === 'monthly') {
+        monthlyGroup.style.display = 'block';
+    } else {
+        monthlyGroup.style.display = 'none';
     }
 }
 
@@ -51,13 +61,11 @@ async function loadExpenses() {
     try {
         let query = supabaseClient.from('expenses').select('*');
 
-        // Optional search/filter support
         const searchInput = document.getElementById('searchInput');
         if (searchInput && searchInput.value.trim() !== '') {
             query = query.ilike('title', `%${searchInput.value.trim()}%`);
         }
 
-        // Fetch top 5 recent records
         const { data, error } = await query
             .order('expense_date', { ascending: false })
             .limit(5);
@@ -200,20 +208,28 @@ document.getElementById('expenseForm').addEventListener('submit', async (e) => {
     }
 });
 
-// PDF GENERATOR WITH CATEGORY BREAKDOWN
+// PDF GENERATOR (MONTHLY & YEARLY FLEXIBLE FILTER)
 document.getElementById('downloadPdfBtn').addEventListener('click', async () => {
+    const reportType = document.getElementById('reportType').value;
     const month = document.getElementById('pdfMonth').value;
     const year = document.getElementById('pdfYear').value;
+
+    if (!year) {
+        alert('Kripya Year enter karein (e.g. 2026).');
+        return;
+    }
 
     try {
         let query = supabaseClient.from('expenses').select('*');
 
-        if (year && month) {
+        if (reportType === 'monthly' && month) {
+            // Specific Month + Custom Year
             const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
             const lastDay = new Date(year, month, 0).getDate();
             const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
             query = query.gte('expense_date', startDate).lte('expense_date', endDate);
-        } else if (year) {
+        } else {
+            // Entire Custom Year (Full 12 Months)
             query = query.gte('expense_date', `${year}-01-01`).lte('expense_date', `${year}-12-31`);
         }
 
@@ -221,7 +237,7 @@ document.getElementById('downloadPdfBtn').addEventListener('click', async () => 
 
         if (error) throw error;
         if (!data || data.length === 0) {
-            alert('Selected duration ke liye koi data nahi milaa.');
+            alert(`Selected duration (${reportType === 'monthly' ? 'Month ' + month + ' ' : ''}${year}) ke liye koi data nahi milaa.`);
             return;
         }
 
@@ -229,7 +245,7 @@ document.getElementById('downloadPdfBtn').addEventListener('click', async () => 
         const doc = new jsPDF();
 
         const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        const periodText = month ? `${monthNames[month]} ${year}` : `Year ${year || 'All Time'}`;
+        const periodText = reportType === 'monthly' ? `${monthNames[month]} ${year}` : `Full Year ${year}`;
 
         // 1. TOP HEADER BAR
         doc.setFillColor(15, 23, 42); 
@@ -367,7 +383,9 @@ document.getElementById('downloadPdfBtn').addEventListener('click', async () => 
             doc.text(`Page ${i} of ${pageCount}`, 180, 286);
         }
 
-        doc.save(`Barir_Korcha_${month || 'All'}_${year}.pdf`);
+        const fileName = reportType === 'monthly' ? `Barir_Korcha_${monthNames[month]}_${year}.pdf` : `Barir_Korcha_Year_${year}.pdf`;
+        doc.save(fileName);
+
         const drawer = document.getElementById('drawerMenu');
         if (drawer) drawer.classList.remove('active');
 
