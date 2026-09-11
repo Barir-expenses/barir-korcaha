@@ -67,7 +67,7 @@ document.getElementById('expenseForm').addEventListener('submit', async (e) => {
     }
 });
 
-// PDF Generation Logic (Pro Design)
+// Professional PDF Report Generator
 document.getElementById('downloadPdfBtn').addEventListener('click', async () => {
     const month = document.getElementById('pdfMonth').value;
     const year = document.getElementById('pdfYear').value;
@@ -88,42 +88,98 @@ document.getElementById('downloadPdfBtn').addEventListener('click', async () => 
 
         if (error) throw error;
         if (!data || data.length === 0) {
-            alert('No data found for selected period.');
+            alert('Selected duration ke liye koi data nahi milaa.');
             return;
         }
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
-        // PDF Header styling
-        doc.setFillColor(79, 70, 229);
-        doc.rect(0, 0, 210, 28, 'F');
+        const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        const periodText = month ? `${monthNames[month]} ${year}` : `Year ${year || 'All Time'}`;
+
+        // Top Branding Header Banner
+        doc.setFillColor(15, 23, 42); // Dark Navy Slate
+        doc.rect(0, 0, 210, 38, 'F');
+
+        doc.setFont("helvetica", "bold");
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(16);
-        doc.text("Expense Statement Report", 14, 18);
+        doc.setFontSize(20);
+        doc.text("BARIR KORCHA", 14, 22);
+
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(148, 163, 184);
+        doc.text("OFFICIAL EXPENSE STATEMENT", 14, 30);
+
+        // Statement Metadata Summary Box
+        doc.setFillColor(241, 245, 249);
+        doc.roundedRect(14, 46, 182, 22, 3, 3, 'F');
+
+        doc.setFontSize(8);
+        doc.setTextColor(100, 116, 139);
+        doc.text("STATEMENT PERIOD", 20, 53);
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(15, 23, 42);
+        doc.text(periodText, 20, 61);
+
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(100, 116, 139);
+        doc.text("TOTAL EXPENDITURE", 120, 53);
 
         let totalAmount = 0;
         const rows = data.map((item, idx) => {
             totalAmount += Number(item.amount);
-            return [idx + 1, item.expense_date, item.title, `Rs. ${Number(item.amount).toFixed(2)}`];
+            return [
+                idx + 1, 
+                item.expense_date, 
+                item.title, 
+                `INR ${Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+            ];
         });
 
-        // Table Styling
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(220, 38, 38); // Highlighted Red
+        doc.text(`INR ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 120, 61);
+
+        // Structured Table
         doc.autoTable({
-            startY: 36,
-            head: [['#', 'Date', 'Description', 'Amount']],
+            startY: 76,
+            head: [['S.No', 'Date', 'Category / Details', 'Amount']],
             body: rows,
-            headStyles: { fillColor: [79, 70, 229], textColor: [255, 255, 255] },
+            theme: 'striped',
+            headStyles: { 
+                fillColor: [15, 23, 42], 
+                textColor: [255, 255, 255],
+                fontStyle: 'bold',
+                fontSize: 9
+            },
+            bodyStyles: { fontSize: 9, textColor: [30, 41, 59] },
             alternateRowStyles: { fillColor: [248, 250, 252] },
+            columnStyles: {
+                0: { cellWidth: 15, halign: 'center' },
+                1: { cellWidth: 35 },
+                2: { cellWidth: 85 },
+                3: { cellWidth: 47, halign: 'right', fontStyle: 'bold' }
+            },
+            margin: { left: 14, right: 14 }
         });
 
-        // Footer Summary
-        const finalY = doc.lastAutoTable.finalY || 40;
-        doc.setFontSize(12);
-        doc.setTextColor(15, 23, 42);
-        doc.text(`Total Expense: Rs. ${totalAmount.toFixed(2)}`, 14, finalY + 12);
+        // Footer with Timestamp & Page Info
+        const pageCount = doc.internal.getNumberOfPages();
+        for (let i = 1; i <= pageCount; i++) {
+            doc.setPage(i);
+            doc.setFontSize(8);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(148, 163, 184);
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 287);
+            doc.text(`Page ${i} of ${pageCount}`, 180, 287);
+        }
 
-        doc.save(`Report_${month || 'All'}_${year}.pdf`);
+        doc.save(`Barir_Korcha_${month || 'All'}_${year}.pdf`);
         document.getElementById('drawerMenu').classList.remove('active');
 
     } catch (err) {
