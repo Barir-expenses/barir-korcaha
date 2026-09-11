@@ -7,6 +7,7 @@ const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('expense_date').valueAsDate = new Date();
     loadExpenses();
+    loadExpenseSuggestions();
 
     // 3-Line Menu Drawer Controls
     const drawer = document.getElementById('drawerMenu');
@@ -45,6 +46,63 @@ async function loadExpenses() {
     }
 }
 
+// Saved Expense Titles ko Fetch karke Dropdown List me load karne ka logic
+async function loadExpenseSuggestions() {
+    try {
+        const { data, error } = await supabaseClient
+            .from('expenses')
+            .select('title');
+
+        if (error) throw error;
+
+        const datalist = document.getElementById('expenseSuggestions');
+        datalist.innerHTML = '';
+
+        if (data && data.length > 0) {
+            // Duplicate titles remove karne ke liye Set ka use kiya hai
+            const uniqueTitles = [...new Set(data.map(item => item.title.trim()))];
+            uniqueTitles.forEach(title => {
+                const option = document.createElement('option');
+                option.value = title;
+                datalist.appendChild(option);
+            });
+        }
+    } catch (err) {
+        console.error("Suggestions Fetch Error:", err);
+    }
+}
+
+// Expense Title Select/Type karte waqt uska Total Spend calculate karna
+document.getElementById('title').addEventListener('input', async (e) => {
+    const selectedTitle = e.target.value.trim();
+    const badge = document.getElementById('categorySpendBadge');
+    const amountSpan = document.getElementById('categorySpendAmount');
+
+    if (!selectedTitle) {
+        badge.style.display = 'none';
+        return;
+    }
+
+    try {
+        const { data, error } = await supabaseClient
+            .from('expenses')
+            .select('amount')
+            .ilike('title', selectedTitle);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+            const total = data.reduce((sum, item) => sum + Number(item.amount), 0);
+            amountSpan.textContent = `₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            badge.style.display = 'block';
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch (err) {
+        console.error("Category Spend Error:", err);
+    }
+});
+
 // Save Expense Logic
 document.getElementById('expenseForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -61,7 +119,10 @@ document.getElementById('expenseForm').addEventListener('submit', async (e) => {
 
         document.getElementById('amount').value = '';
         document.getElementById('title').value = '';
+        document.getElementById('categorySpendBadge').style.display = 'none';
+        
         loadExpenses();
+        loadExpenseSuggestions(); // Naya Title Datalist me update karein
     } catch (err) {
         alert(`Error: ${err.message}`);
     }
