@@ -177,18 +177,18 @@ if (expenseForm) {
     });
 }
 
-// Clean Text Category Tags (Since jsPDF fonts don't render unicode emojis)
+// Category Tag Helper - General aur Travel tags bilkul hata diye gaye hain
 function getCategoryTag(title) {
     const t = title.toLowerCase();
-    if (t.includes('rent') || t.includes('room') || t.includes('house') || t.includes('flat')) return '[RENT]';
-    if (t.includes('food') || t.includes('grocery') || t.includes('ration') || t.includes('rice') || t.includes('milk') || t.includes('veg')) return '[GROCERY]';
-    if (t.includes('bill') || t.includes('electric') || t.includes('power') || t.includes('current') || t.includes('light')) return '[UTILITY]';
-    if (t.includes('wifi') || t.includes('net') || t.includes('recharge') || t.includes('mobile') || t.includes('phone')) return '[NETWORK]';
-    if (t.includes('auto') || t.includes('cab') || t.includes('bus') || t.includes('petrol') || t.includes('diesel') || t.includes('travel') || t.includes('bike')) return '[TRAVEL]';
-    if (t.includes('med') || t.includes('doctor') || t.includes('pharma') || t.includes('health')) return '[MEDICAL]';
-    if (t.includes('maid') || t.includes('cook') || t.includes('clean') || t.includes('wash')) return '[MAINT]';
-    if (t.includes('gas') || t.includes('cylinder')) return '[GAS]';
-    return '[GENERAL]';
+    if (t.includes('rent') || t.includes('room') || t.includes('house') || t.includes('flat')) return '[RENT] ';
+    if (t.includes('food') || t.includes('grocery') || t.includes('ration') || t.includes('rice') || t.includes('milk') || t.includes('veg')) return '[GROCERY] ';
+    if (t.includes('bill') || t.includes('electric') || t.includes('power') || t.includes('current') || t.includes('light')) return '[UTILITY] ';
+    if (t.includes('wifi') || t.includes('net') || t.includes('recharge') || t.includes('mobile') || t.includes('phone')) return '[NETWORK] ';
+    if (t.includes('med') || t.includes('doctor') || t.includes('pharma') || t.includes('health')) return '[MEDICAL] ';
+    if (t.includes('maid') || t.includes('cook') || t.includes('clean') || t.includes('wash')) return '[MAINT] ';
+    if (t.includes('gas') || t.includes('cylinder')) return '[GAS] ';
+    
+    return ''; // Baki cases me koi tag nahi judega
 }
 
 // Custom Font Loader Helper
@@ -202,7 +202,7 @@ async function loadFontAsBase64(url) {
     });
 }
 
-// ALL-CAPS BOLD PDF GENERATOR WITH CLEAN CATEGORY TAGS
+// PDF GENERATOR WITH FIXED SPACING & NO GENERAL/TRAVEL TAGS
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 if (downloadPdfBtn) {
     downloadPdfBtn.addEventListener('click', async () => {
@@ -276,7 +276,7 @@ if (downloadPdfBtn) {
                 groupedMap[titleKey].count += 1;
             });
 
-            // 1. BRAND HEADER (ALL CAPS)
+            // 1. BRAND HEADER
             doc.setFont(activeFont, "bold");
             doc.setFontSize(22);
             doc.setTextColor(15, 23, 42); 
@@ -287,7 +287,7 @@ if (downloadPdfBtn) {
             doc.setTextColor(71, 85, 105);
             doc.text("EXPENSE STATEMENT & LEDGER", 14, 26);
 
-            // CURVED META CARD (TOP RIGHT)
+            // CURVED META CARD
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(203, 213, 225);
             doc.setLineWidth(0.3);
@@ -305,22 +305,20 @@ if (downloadPdfBtn) {
             doc.text(generatedDate, 153, 21);
             doc.text(docRef, 153, 26);
 
-            // 2. CURVED SUMMARY CARDS (ALL CAPS & TAGS)
+            // 2. CURVED SUMMARY CARDS
             const rx = 4;
 
-            // Card 1: Total Transactions
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(203, 213, 225);
             doc.roundedRect(14, 38, 56, 20, rx, rx, 'FD');
             doc.setFontSize(7.5);
             doc.setFont(activeFont, "bold");
             doc.setTextColor(71, 85, 105);
-            doc.text("TOTAL TRANSACTIONS 💵", 19, 45);
+            doc.text("TOTAL TRANSACTIONS", 19, 45);
             doc.setFontSize(11);
             doc.setTextColor(15, 23, 42);
             doc.text(`${data.length} RECORDS`, 19, 52);
 
-            // Card 2: Unique Categories
             doc.setFillColor(248, 250, 252);
             doc.roundedRect(76, 38, 56, 20, rx, rx, 'FD');
             doc.setFontSize(7.5);
@@ -331,23 +329,22 @@ if (downloadPdfBtn) {
             doc.setTextColor(15, 23, 42);
             doc.text(`${Object.keys(groupedMap).length} ITEMS`, 81, 52);
 
-            // Card 3: Total Spent
             doc.setFillColor(254, 242, 242);
             doc.setDrawColor(252, 165, 165);
             doc.roundedRect(138, 38, 58, 20, rx, rx, 'FD');
             doc.setFontSize(7.5);
             doc.setFont(activeFont, "bold");
             doc.setTextColor(185, 28, 28);
-            doc.text("TOTAL SPENT 💰", 143, 45);
+            doc.text("TOTAL SPENT", 143, 45);
             doc.setFontSize(12);
             doc.setTextColor(153, 27, 27);
             doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 143, 52);
 
-            // 3. LEDGER TABLE SECTION (ALL CAPS & TAGS)
+            // 3. LEDGER TABLE SECTION (Optimized Spacing)
             doc.setFontSize(10.5);
             doc.setFont(activeFont, "bold");
             doc.setTextColor(15, 23, 42);
-            doc.text("EXPENSE BREAKDOWN 📊", 14, 67);
+            doc.text("EXPENSE BREAKDOWN", 14, 67);
 
             const tableRows = Object.keys(groupedMap).map((title, idx) => {
                 const totalAmt = groupedMap[title].totalAmount;
@@ -356,7 +353,7 @@ if (downloadPdfBtn) {
 
                 return [
                     `#${String(idx + 1).padStart(2, '0')}`,
-                    `${tag} ${title}`,
+                    `${tag}${title}`,
                     `${count} ${count > 1 ? 'ENTRIES' : 'ENTRY'}`,
                     `₹${totalAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
                 ];
@@ -384,15 +381,15 @@ if (downloadPdfBtn) {
                 },
                 alternateRowStyles: { fillColor: [248, 250, 252] },
                 columnStyles: {
-                    0: { cellWidth: 15, halign: 'center', fontStyle: 'bold', textColor: [71, 85, 105] },
-                    1: { cellWidth: 95, fontStyle: 'bold' },
-                    2: { cellWidth: 32, halign: 'center', fontStyle: 'bold' },
-                    3: { cellWidth: 40, halign: 'right', fontStyle: 'bold', textColor: [185, 28, 28] }
+                    0: { cellWidth: 12, halign: 'center', fontStyle: 'bold', textColor: [71, 85, 105] },
+                    1: { cellWidth: 105, fontStyle: 'bold' }, // Expands details area
+                    2: { cellWidth: 28, halign: 'center', fontStyle: 'bold' },
+                    3: { cellWidth: 37, halign: 'right', fontStyle: 'bold', textColor: [185, 28, 28] } // Clean Right-Alignment
                 },
                 margin: { left: 14, right: 14 }
             });
 
-            // 4. FOOTER (ALL CAPS)
+            // 4. FOOTER
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
