@@ -67,7 +67,7 @@ document.getElementById('expenseForm').addEventListener('submit', async (e) => {
     }
 });
 
-// Professional PDF Report Generator
+// Professional PDF Report Generator (Indigo & Slate Theme)
 document.getElementById('downloadPdfBtn').addEventListener('click', async () => {
     const month = document.getElementById('pdfMonth').value;
     const year = document.getElementById('pdfYear').value;
@@ -98,37 +98,34 @@ document.getElementById('downloadPdfBtn').addEventListener('click', async () => 
         const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const periodText = month ? `${monthNames[month]} ${year}` : `Year ${year || 'All Time'}`;
 
-        // Top Branding Header Banner
-        doc.setFillColor(15, 23, 42); // Dark Navy Slate
-        doc.rect(0, 0, 210, 38, 'F');
+        // 1. TOP BRANDING HEADER (Gradient Style - Deep Indigo)
+        doc.setFillColor(30, 27, 75); // Dark Indigo
+        doc.rect(0, 0, 210, 40, 'F');
 
+        // Accent Line
+        doc.setFillColor(99, 102, 241); // Vibrant Indigo Accent
+        doc.rect(0, 38, 210, 2, 'F');
+
+        // Brand Name & Subtitle
         doc.setFont("helvetica", "bold");
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(20);
+        doc.setFontSize(22);
         doc.text("BARIR KORCHA", 14, 22);
 
         doc.setFontSize(9);
         doc.setFont("helvetica", "normal");
-        doc.setTextColor(148, 163, 184);
-        doc.text("OFFICIAL EXPENSE STATEMENT", 14, 30);
+        doc.setTextColor(199, 210, 254);
+        doc.text("MONTHLY EXPENSE STATEMENT", 14, 30);
 
-        // Statement Metadata Summary Box
-        doc.setFillColor(241, 245, 249);
-        doc.roundedRect(14, 46, 182, 22, 3, 3, 'F');
-
+        // Right Header Stamp/Tag
+        doc.setFillColor(49, 46, 129);
+        doc.roundedRect(140, 12, 56, 16, 4, 4, 'F');
         doc.setFontSize(8);
-        doc.setTextColor(100, 116, 139);
-        doc.text("STATEMENT PERIOD", 20, 53);
-        doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
-        doc.setTextColor(15, 23, 42);
-        doc.text(periodText, 20, 61);
+        doc.setTextColor(224, 231, 255);
+        doc.text("OFFICIAL REPORT", 147, 22);
 
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(100, 116, 139);
-        doc.text("TOTAL EXPENDITURE", 120, 53);
-
+        // 2. METRIC SUMMARY CARDS
         let totalAmount = 0;
         const rows = data.map((item, idx) => {
             totalAmount += Number(item.amount);
@@ -136,50 +133,85 @@ document.getElementById('downloadPdfBtn').addEventListener('click', async () => 
                 idx + 1, 
                 item.expense_date, 
                 item.title, 
-                `INR ${Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                `Rs. ${Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
             ];
         });
 
-        doc.setFontSize(11);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(220, 38, 38); // Highlighted Red
-        doc.text(`INR ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 120, 61);
+        // Left Card: Period Info
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(226, 232, 240);
+        doc.roundedRect(14, 48, 88, 22, 3, 3, 'FD');
 
-        // Structured Table
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(100, 116, 139);
+        doc.text("STATEMENT PERIOD", 20, 55);
+        doc.setFontSize(11);
+        doc.setTextColor(15, 23, 42);
+        doc.text(periodText, 20, 64);
+
+        // Right Card: Total Amount Highlight
+        doc.setFillColor(254, 242, 242); // Soft Light Red Container
+        doc.setDrawColor(254, 202, 202);
+        doc.roundedRect(108, 48, 88, 22, 3, 3, 'FD');
+
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(185, 28, 28);
+        doc.text("TOTAL EXPENSE SPENT", 114, 55);
+        doc.setFontSize(12);
+        doc.setTextColor(220, 38, 38); // Crimson Red
+        doc.text(`Rs. ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 114, 64);
+
+        // 3. TABLE STYLING
         doc.autoTable({
-            startY: 76,
-            head: [['S.No', 'Date', 'Category / Details', 'Amount']],
+            startY: 78,
+            head: [['#', 'Date', 'Category / Details', 'Amount']],
             body: rows,
-            theme: 'striped',
+            theme: 'grid',
             headStyles: { 
-                fillColor: [15, 23, 42], 
+                fillColor: [67, 56, 202], // Premium Indigo
                 textColor: [255, 255, 255],
                 fontStyle: 'bold',
-                fontSize: 9
+                fontSize: 9,
+                halign: 'left'
             },
-            bodyStyles: { fontSize: 9, textColor: [30, 41, 59] },
-            alternateRowStyles: { fillColor: [248, 250, 252] },
+            bodyStyles: { 
+                fontSize: 9, 
+                textColor: [51, 65, 85],
+                cellPadding: 4
+            },
+            alternateRowStyles: { 
+                fillColor: [248, 250, 252] 
+            },
             columnStyles: {
-                0: { cellWidth: 15, halign: 'center' },
+                0: { cellWidth: 15, halign: 'center', fontStyle: 'bold' },
                 1: { cellWidth: 35 },
                 2: { cellWidth: 85 },
-                3: { cellWidth: 47, halign: 'right', fontStyle: 'bold' }
+                3: { cellWidth: 47, halign: 'right', fontStyle: 'bold', textColor: [220, 38, 38] }
             },
+            gridLineColor: [226, 232, 240],
+            lineWidth: 0.1,
             margin: { left: 14, right: 14 }
         });
 
-        // Footer with Timestamp & Page Info
+        // 4. FOOTER & PAGE NUMBERS
         const pageCount = doc.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
+            
+            // Footer Divider
+            doc.setDrawColor(226, 232, 240);
+            doc.line(14, 280, 196, 280);
+
             doc.setFontSize(8);
             doc.setFont("helvetica", "normal");
             doc.setTextColor(148, 163, 184);
-            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 287);
-            doc.text(`Page ${i} of ${pageCount}`, 180, 287);
+            doc.text(`Generated automatically by Barir Korcha • ${new Date().toLocaleDateString()}`, 14, 286);
+            doc.text(`Page ${i} of ${pageCount}`, 180, 286);
         }
 
-        doc.save(`Barir_Korcha_${month || 'All'}_${year}.pdf`);
+        doc.save(`Barir_Korcha_Statement_${month || 'All'}_${year}.pdf`);
         document.getElementById('drawerMenu').classList.remove('active');
 
     } catch (err) {
