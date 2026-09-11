@@ -12,8 +12,8 @@
 
     <style>
         :root {
-            --primary: #6366f1;
-            --primary-hover: #4f46e5;
+            --primary: #10b981;
+            --primary-hover: #059669;
             --bg: #f1f5f9;
             --text: #0f172a;
             --text-muted: #64748b;
@@ -24,7 +24,7 @@
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
         body { background-color: var(--bg); color: var(--text); padding-bottom: 50px; overflow-x: hidden; }
 
-        /* Modern Glassmorphism Navbar */
+        /* Modern Navbar */
         .navbar {
             background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(12px);
@@ -38,83 +38,59 @@
             z-index: 10;
         }
         
-        /* Brand Title with PNG Logo */
+        /* Title with PNG Logo */
         .brand { 
             font-weight: 800; 
             font-size: 1.45rem; 
             color: #3730a3; 
             display: flex; 
             align-items: center; 
-            gap: 12px; 
+            gap: 10px; 
             letter-spacing: -0.3px; 
         }
 
-        .brand-logo {
-            width: 36px;
-            height: 36px;
-            object-fit: contain;
-            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        .brand-logo { 
+            width: 36px; 
+            height: 36px; 
+            object-fit: contain; 
         }
 
         /* 3-Line Menu Trigger */
         .menu-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--text);
-            padding: 6px 10px;
-            border-radius: 8px;
+            background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text); padding: 6px 10px; border-radius: 8px;
             transition: background 0.2s;
         }
         .menu-btn:hover { background: #e2e8f0; }
 
-        /* Slide-over Drawer Menu */
+        /* Slide Drawer */
         .drawer {
-            position: fixed;
-            top: 0; right: -340px;
-            width: 320px; height: 100%;
-            background: #ffffff;
-            box-shadow: -10px 0 30px rgba(0,0,0,0.08);
-            transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            z-index: 100;
-            padding: 24px;
+            position: fixed; top: 0; right: -340px; width: 320px; height: 100%; background: #ffffff;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.08); transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; padding: 24px;
         }
         .drawer.active { right: 0; }
         .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
         .close-btn { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted); }
 
-        /* Smooth Floating Animation */
+        /* Floating Animation */
         @keyframes float {
             0% { transform: translateY(0px); }
             50% { transform: translateY(-8px); }
             100% { transform: translateY(0px); }
         }
 
-        /* Container & Cards Layout */
+        /* Main Container */
         .container { max-width: 680px; margin: 2.2rem auto; padding: 0 1.2rem; }
 
+        /* Card Layout */
         .card { 
-            border-radius: var(--radius); 
-            padding: 1.8rem; 
-            margin-bottom: 2rem; 
-            box-shadow: 0 12px 28px -5px rgba(0, 0, 0, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.8);
+            border-radius: var(--radius); padding: 1.8rem; margin-bottom: 2rem; 
+            box-shadow: 0 12px 28px -5px rgba(0, 0, 0, 0.05); border: 1px solid rgba(255, 255, 255, 0.8);
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
-        .card:hover {
-            box-shadow: 0 20px 32px -10px rgba(0, 0, 0, 0.09);
-        }
+        .card:hover { box-shadow: 0 20px 32px -10px rgba(0, 0, 0, 0.09); }
 
-        /* Light Pastel Gradients */
-        .card-add { 
-            background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%);
-            animation: float 6s ease-in-out infinite;
-        }
-        .card-history { 
-            background: linear-gradient(135deg, #fefce8 0%, #fef2f2 100%);
-            animation: float 7s ease-in-out infinite 0.5s;
-        }
+        .card-add { background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); animation: float 6s ease-in-out infinite; }
+        .card-history { background: linear-gradient(135deg, #fefce8 0%, #fef2f2 100%); animation: float 7s ease-in-out infinite 0.5s; }
 
         .card-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 1.2rem; color: #1e293b; }
 
@@ -123,48 +99,44 @@
         label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.45rem; text-transform: uppercase; letter-spacing: 0.5px; }
         
         input, select {
-            width: 100%; padding: 0.85rem 1rem;
-            border: 1.5px solid var(--border);
-            border-radius: 12px; font-size: 0.95rem;
-            background: rgba(255, 255, 255, 0.9); color: var(--text);
-            outline: none; transition: all 0.2s ease-in-out;
-            font-weight: 500;
+            width: 100%; padding: 0.85rem 1rem; border: 1.5px solid var(--border);
+            border-radius: 12px; font-size: 0.95rem; background: rgba(255, 255, 255, 0.9); color: var(--text);
+            outline: none; transition: all 0.2s ease-in-out; font-weight: 500;
         }
 
-        /* Amount Field RED Color Styling */
+        /* RED TEXT FOR AMOUNT INPUT */
         input[type="number"]#amount {
             color: #dc2626 !important;
             font-weight: 700 !important;
             font-size: 1.05rem;
         }
 
-        /* Fancy Date Picker Overlay */
+        /* Calendar Picker Wrapper */
         .date-wrapper { position: relative; display: flex; align-items: center; }
         .date-wrapper::after { content: '📅'; position: absolute; right: 15px; pointer-events: none; font-size: 1.1rem; }
 
-        input:focus, select:focus { 
-            border-color: var(--primary); 
-            box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15);
-            background: #ffffff;
-        }
+        input:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); background: #ffffff; }
 
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 
-        /* Primary Button */
+        /* GREEN ACCENT SAVE BUTTON */
         .btn {
-            width: 100%; padding: 0.9rem;
-            border: none; border-radius: 12px;
-            font-weight: 600; font-size: 0.95rem; cursor: pointer;
-            background: var(--primary); color: white;
-            transition: all 0.2s;
-            box-shadow: 0 4px 14px rgba(99, 102, 241, 0.3);
+            width: 100%; padding: 0.9rem; border: none; border-radius: 12px;
+            font-weight: 600; font-size: 0.95rem; cursor: pointer; 
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;
+            transition: all 0.2s ease-in-out; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
         }
-        .btn:hover { background: var(--primary-hover); transform: translateY(-1px); }
+        .btn:hover { 
+            background: linear-gradient(135deg, #059669 0%, #047857 100%); 
+            transform: translateY(-1px); 
+            box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
+        }
 
-        /* Expense Table */
+        /* History Table */
         table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
         th, td { padding: 0.85rem 0.5rem; text-align: left; border-bottom: 1px solid rgba(0, 0, 0, 0.06); font-size: 0.92rem; }
         th { color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.6px; }
+        
         .amount-td { color: #dc2626; font-weight: 700; }
     </style>
 
@@ -175,17 +147,17 @@
 </head>
 <body>
 
-    <!-- Top Navigation Header -->
+    <!-- NAVBAR WITH PNG LOGO -->
     <nav class="navbar">
         <div class="brand">
-            <!-- PNG Logo Image Placeholders -->
-            <img src="logo.png" alt="Logo" class="brand-logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/609/609803.png'">
+            <!-- PNG Logo File (public/logo.png) -->
+            <img src="logo.png" alt="barir korcha logo" class="brand-logo">
             <span>barir korcha</span>
         </div>
         <button class="menu-btn" id="menuToggle">☰</button>
     </nav>
 
-    <!-- Side Navigation Menu (3-Line Navigation Drawer) -->
+    <!-- DRAWER MENU -->
     <div class="drawer" id="drawerMenu">
         <div class="drawer-header">
             <h3>Download Statement</h3>
@@ -222,9 +194,9 @@
         <button id="downloadPdfBtn" class="btn">📄 Get PDF Report</button>
     </div>
 
-    <!-- Main Content Container -->
+    <!-- MAIN CONTAINER -->
     <div class="container">
-        <!-- Floating Card 1: Add Expense -->
+        <!-- Add Expense Card -->
         <div class="card card-add">
             <div class="card-title">➕ Add New Expense</div>
             <form id="expenseForm">
@@ -235,6 +207,7 @@
                 <div class="grid-2">
                     <div class="form-group">
                         <label>Amount (₹)</label>
+                        <!-- Amount text displays in RED -->
                         <input type="number" id="amount" step="0.01" placeholder="0.00" required>
                     </div>
                     <div class="form-group">
@@ -244,11 +217,12 @@
                         </div>
                     </div>
                 </div>
+                <!-- GREEN SAVE BUTTON -->
                 <button type="submit" class="btn">Save Expense</button>
             </form>
         </div>
 
-        <!-- Floating Card 2: Expense History -->
+        <!-- Expense History Card -->
         <div class="card card-history">
             <div class="card-title">📋 Expense History</div>
             <table>
