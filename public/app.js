@@ -9,9 +9,9 @@ let editingExpenseId = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('expense_date').valueAsDate = new Date();
+    populateYearDropdown();
     loadExpenses();
     loadExpenseSuggestions();
-    loadCategorySummary();
 
     // 3-Line Menu Drawer Controls
     const drawer = document.getElementById('drawerMenu');
@@ -29,7 +29,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-// Expenses Fetch Logic
+// Dynamic Years Generator (Past 5 years to Current Year)
+function populateYearDropdown() {
+    const yearSelect = document.getElementById('pdfYear');
+    if (!yearSelect) return;
+    
+    const currentYear = new Date().getFullYear();
+    yearSelect.innerHTML = '';
+
+    for (let i = currentYear - 5; i <= currentYear; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = i;
+        if (i === currentYear) option.selected = true;
+        yearSelect.appendChild(option);
+    }
+}
+
+// Expenses Fetch Logic (Recent 5 Records Only)
 async function loadExpenses() {
     try {
         let query = supabaseClient.from('expenses').select('*');
@@ -40,7 +57,10 @@ async function loadExpenses() {
             query = query.ilike('title', `%${searchInput.value.trim()}%`);
         }
 
-        const { data, error } = await query.order('expense_date', { ascending: false });
+        // Fetch top 5 recent records
+        const { data, error } = await query
+            .order('expense_date', { ascending: false })
+            .limit(5);
 
         if (error) throw error;
 
@@ -54,58 +74,15 @@ async function loadExpenses() {
                     <tr>
                         <td>${item.expense_date}</td>
                         <td>${item.title}</td>
-                        <td><strong>₹${Number(item.amount).toFixed(2)}</strong></td>
-                        <td>
-                            <button onclick="editExpense('${item.id}', '${escapeHtml(item.title)}', ${item.amount}, '${item.expense_date}')" class="btn-edit">Edit</button>
-                            <button onclick="deleteExpense('${item.id}')" class="btn-delete">Delete</button>
-                        </td>
+                        <td class="amount-td">₹${Number(item.amount).toFixed(2)}</td>
                     </tr>
                 `;
             });
         } else {
-            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No records found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No records found.</td></tr>`;
         }
     } catch (err) {
         console.error("Fetch Error:", err);
-    }
-}
-
-// Category Wise Total Summary
-async function loadCategorySummary() {
-    try {
-        const { data, error } = await supabaseClient
-            .from('expenses')
-            .select('title, amount');
-
-        if (error) throw error;
-
-        const summaryBody = document.getElementById('categorySummaryList');
-        if (!summaryBody) return;
-
-        summaryBody.innerHTML = '';
-
-        if (data && data.length > 0) {
-            const categoryTotals = {};
-            data.forEach(item => {
-                const title = item.title.trim();
-                const amount = Number(item.amount) || 0;
-                categoryTotals[title] = (categoryTotals[title] || 0) + amount;
-            });
-
-            Object.keys(categoryTotals).forEach(title => {
-                const totalFormatted = categoryTotals[title].toLocaleString('en-IN', { minimumFractionDigits: 2 });
-                summaryBody.innerHTML += `
-                    <tr>
-                        <td>${title}</td>
-                        <td><strong>₹${totalFormatted}</strong></td>
-                    </tr>
-                `;
-            });
-        } else {
-            summaryBody.innerHTML = `<tr><td colspan="2" style="text-align:center;">No category summary available.</td></tr>`;
-        }
-    } catch (err) {
-        console.error("Category Summary Fetch Error:", err);
     }
 }
 
@@ -193,7 +170,6 @@ document.getElementById('expenseForm').addEventListener('submit', async (e) => {
 
     try {
         if (editingExpenseId) {
-            // Update Existing Record
             const { error } = await supabaseClient
                 .from('expenses')
                 .update({ amount: parseFloat(amount), title: title.trim(), expense_date })
@@ -205,7 +181,6 @@ document.getElementById('expenseForm').addEventListener('submit', async (e) => {
             const submitBtn = document.querySelector('#expenseForm button[type="submit"]');
             if (submitBtn) submitBtn.textContent = 'Save Expense';
         } else {
-            // Insert New Record
             const { error } = await supabaseClient
                 .from('expenses')
                 .insert([{ amount: parseFloat(amount), title: title.trim(), expense_date }]);
@@ -220,51 +195,12 @@ document.getElementById('expenseForm').addEventListener('submit', async (e) => {
         
         loadExpenses();
         loadExpenseSuggestions();
-        loadCategorySummary();
     } catch (err) {
         alert(`Error: ${err.message}`);
     }
 });
 
-// Edit Expense Handler
-function editExpense(id, title, amount, date) {
-    editingExpenseId = id;
-    document.getElementById('title').value = title;
-    document.getElementById('amount').value = amount;
-    document.getElementById('expense_date').value = date;
-
-    const submitBtn = document.querySelector('#expenseForm button[type="submit"]');
-    if (submitBtn) submitBtn.textContent = 'Update Expense';
-
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-// Delete Expense Handler
-async function deleteExpense(id) {
-    if (!confirm("Kya aap ise delete karna chahte hain?")) return;
-
-    try {
-        const { error } = await supabaseClient
-            .from('expenses')
-            .delete()
-            .eq('id', id);
-
-        if (error) throw error;
-
-        loadExpenses();
-        loadExpenseSuggestions();
-        loadCategorySummary();
-    } catch (err) {
-        alert(`Delete Error: ${err.message}`);
-    }
-}
-
-// Helper to escape single quotes / special characters in strings
-function escapeHtml(str) {
-    return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
-}
-
-// UNIQUE MODERN EXECUTIVE PDF GENERATOR
+// PDF GENERATOR WITH CATEGORY BREAKDOWN
 document.getElementById('downloadPdfBtn').addEventListener('click', async () => {
     const month = document.getElementById('pdfMonth').value;
     const year = document.getElementById('pdfYear').value;
@@ -295,90 +231,125 @@ document.getElementById('downloadPdfBtn').addEventListener('click', async () => 
         const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
         const periodText = month ? `${monthNames[month]} ${year}` : `Year ${year || 'All Time'}`;
 
-        // 1. MODERN TOP HEADER BAR
-        doc.setFillColor(15, 23, 42); // Ultra Dark Slate
-        doc.rect(0, 0, 210, 48, 'F');
+        // 1. TOP HEADER BAR
+        doc.setFillColor(15, 23, 42); 
+        doc.rect(0, 0, 210, 44, 'F');
 
-        // Neon Accent Line
-        doc.setFillColor(16, 185, 129); // Emerald Green
-        doc.rect(0, 46, 210, 2, 'F');
+        doc.setFillColor(16, 185, 129); 
+        doc.rect(0, 42, 210, 2, 'F');
 
-        // App Name & Subtitle
         doc.setFont("helvetica", "bold");
         doc.setTextColor(255, 255, 255);
-        doc.setFontSize(22);
-        doc.text("barir korcha", 14, 24);
+        doc.setFontSize(20);
+        doc.text("barir korcha", 14, 22);
 
-        doc.setFontSize(9);
+        doc.setFontSize(8.5);
         doc.setFont("helvetica", "normal");
         doc.setTextColor(148, 163, 184);
-        doc.text("PERSONAL FINANCIAL SUMMARY", 14, 34);
+        doc.text("EXPENSE REPORT & CATEGORY BREAKDOWN", 14, 32);
 
-        // Header Status Badge
         doc.setFillColor(30, 41, 59);
-        doc.roundedRect(140, 14, 56, 20, 5, 5, 'F');
+        doc.roundedRect(140, 12, 56, 18, 4, 4, 'F');
         doc.setFontSize(8);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(52, 211, 153);
-        doc.text("VERIFIED REPORT", 148, 26);
+        doc.text("VERIFIED REPORT", 148, 23);
 
-        // 2. METRIC HIGHLIGHT CARDS
+        // 2. METRICS & CATEGORY TOTALS
         let totalAmount = 0;
+        const categoryTotals = {};
+
         const rows = data.map((item, idx) => {
-            totalAmount += Number(item.amount);
+            const itemAmt = Number(item.amount);
+            totalAmount += itemAmt;
+
+            const cleanTitle = item.title.trim();
+            categoryTotals[cleanTitle] = (categoryTotals[cleanTitle] || 0) + itemAmt;
+
             return [
                 idx + 1, 
                 item.expense_date, 
                 item.title, 
-                `INR ${Number(item.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                `INR ${itemAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
             ];
         });
 
-        // Left Metric Box
+        // Period Box
         doc.setFillColor(248, 250, 252);
-        doc.roundedRect(14, 58, 88, 24, 4, 4, 'F');
-        doc.setFontSize(7.5);
+        doc.roundedRect(14, 52, 88, 22, 4, 4, 'F');
+        doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(100, 116, 139);
-        doc.text("PERIOD", 20, 66);
-        doc.setFontSize(11);
+        doc.text("PERIOD", 18, 60);
+        doc.setFontSize(10);
         doc.setTextColor(15, 23, 42);
-        doc.text(periodText, 20, 75);
+        doc.text(periodText, 18, 68);
 
-        // Right Metric Box (Total Expenses)
+        // Grand Total Box
         doc.setFillColor(254, 242, 242);
-        doc.roundedRect(108, 58, 88, 24, 4, 4, 'F');
-        doc.setFontSize(7.5);
+        doc.roundedRect(108, 52, 88, 22, 4, 4, 'F');
+        doc.setFontSize(7);
         doc.setFont("helvetica", "bold");
         doc.setTextColor(220, 38, 38);
-        doc.text("TOTAL SPENT", 114, 66);
-        doc.setFontSize(12);
+        doc.text("GRAND TOTAL SPENT", 112, 60);
+        doc.setFontSize(11);
         doc.setTextColor(185, 28, 28);
-        doc.text(`INR ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 114, 75);
+        doc.text(`INR ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 112, 68);
 
-        // 3. CLEAN MODERN TABLE STYLE
+        // 3. CATEGORY WISE SUMMARY TABLE (PDF Only)
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(15, 23, 42);
+        doc.text("Category / Item Breakdown", 14, 82);
+
+        const categoryRows = Object.keys(categoryTotals).map((title, i) => [
+            i + 1,
+            title,
+            `INR ${categoryTotals[title].toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+        ]);
+
         doc.autoTable({
-            startY: 92,
-            head: [['#', 'Date', 'Transaction Details', 'Amount']],
+            startY: 86,
+            head: [['#', 'Category Name', 'Total Spent']],
+            body: categoryRows,
+            theme: 'plain',
+            headStyles: { 
+                fillColor: [224, 231, 255], 
+                textColor: [55, 48, 163],
+                fontStyle: 'bold',
+                fontSize: 8
+            },
+            bodyStyles: { fontSize: 8.5, textColor: [30, 41, 59] },
+            columnStyles: {
+                0: { cellWidth: 15, halign: 'center' },
+                1: { cellWidth: 110 },
+                2: { cellWidth: 57, halign: 'right', fontStyle: 'bold', textColor: [220, 38, 38] }
+            },
+            margin: { left: 14, right: 14 }
+        });
+
+        // 4. FULL TRANSACTION TABLE
+        const nextY = doc.lastAutoTable.finalY + 12;
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(15, 23, 42);
+        doc.text("All Transactions", 14, nextY);
+
+        doc.autoTable({
+            startY: nextY + 4,
+            head: [['#', 'Date', 'Item Details', 'Amount']],
             body: rows,
             theme: 'plain',
             headStyles: { 
                 fillColor: [241, 245, 249], 
                 textColor: [71, 85, 105],
                 fontStyle: 'bold',
-                fontSize: 8.5,
-                cellPadding: 5
+                fontSize: 8
             },
-            bodyStyles: { 
-                fontSize: 9, 
-                textColor: [30, 41, 59],
-                cellPadding: 4.5
-            },
-            alternateRowStyles: { 
-                fillColor: [248, 250, 252] 
-            },
+            bodyStyles: { fontSize: 8.5, textColor: [30, 41, 59] },
+            alternateRowStyles: { fillColor: [248, 250, 252] },
             columnStyles: {
-                0: { cellWidth: 15, halign: 'center', fontStyle: 'bold' },
+                0: { cellWidth: 15, halign: 'center' },
                 1: { cellWidth: 35 },
                 2: { cellWidth: 85 },
                 3: { cellWidth: 47, halign: 'right', fontStyle: 'bold', textColor: [220, 38, 38] }
@@ -386,19 +357,7 @@ document.getElementById('downloadPdfBtn').addEventListener('click', async () => 
             margin: { left: 14, right: 14 }
         });
 
-        // 4. BOTTOM SIGNATURE & FOOTER
-        const finalY = doc.lastAutoTable.finalY || 120;
-        
-        if (finalY + 30 < 270) {
-            doc.setDrawColor(203, 213, 225);
-            doc.line(14, finalY + 20, 64, finalY + 20);
-            doc.setFontSize(8);
-            doc.setFont("helvetica", "normal");
-            doc.setTextColor(148, 163, 184);
-            doc.text("Authorized Signature", 14, finalY + 25);
-        }
-
-        // Page Numbers
+        // 5. FOOTER
         const pageCount = doc.internal.getNumberOfPages();
         for (let i = 1; i <= pageCount; i++) {
             doc.setPage(i);
