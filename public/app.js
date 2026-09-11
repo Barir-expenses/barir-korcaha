@@ -1,411 +1,420 @@
 // Credentials (Apni Supabase URL & Anon Key yaha daalein)
-const SUPABASE_URL = "https://gmsapmodgwhmsgmgdzfm.supabase.co";[cite: 6]
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdtc2FwbW9kZ3dobXNnbWdkemZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNTEyMzAsImV4cCI6MjEwNDYyNzIzMH0.XJm5a28xV-wF9_y7F4q8JiS73Ui8rFIczUDb63WJ1RM";[cite: 6]
+const SUPABASE_URL = "https://gmsapmodgwhmsgmgdzfm.supabase.co"; 
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdtc2FwbW9kZ3dobXNnbWdkemZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNTEyMzAsImV4cCI6MjEwNDYyNzIzMH0.XJm5a28xV-wF9_y7F4q8JiS73Ui8rFIczUDb63WJ1RM";
 
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);[cite: 6]
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-// State for editing
-let editingExpenseId = null;[cite: 6]
+let editingExpenseId = null;
 
-document.addEventListener('DOMContentLoaded', () => {[cite: 6]
-    document.getElementById('expense_date').valueAsDate = new Date();[cite: 6]
+document.addEventListener('DOMContentLoaded', () => {
+    const expenseDateInput = document.getElementById('expense_date');
+    if (expenseDateInput) expenseDateInput.valueAsDate = new Date();
     
-    // Default Values: Current Year & Current Month
-    const yearInput = document.getElementById('pdfYear');[cite: 6]
-    if (yearInput) yearInput.value = new Date().getFullYear();[cite: 6]
+    const yearInput = document.getElementById('pdfYear');
+    if (yearInput) yearInput.value = new Date().getFullYear();
 
-    const monthSelect = document.getElementById('pdfMonth');[cite: 6]
-    if (monthSelect) monthSelect.value = new Date().getMonth() + 1;[cite: 6]
+    const monthSelect = document.getElementById('pdfMonth');
+    if (monthSelect) monthSelect.value = new Date().getMonth() + 1;
 
-    loadExpenses();[cite: 6]
-    loadExpenseSuggestions();[cite: 6]
+    loadExpenses();
+    loadExpenseSuggestions();
 
-    // 3-Line Menu Drawer Controls
-    const drawer = document.getElementById('drawerMenu');[cite: 6]
-    if (document.getElementById('menuToggle')) {[cite: 6]
-        document.getElementById('menuToggle').addEventListener('click', () => drawer.classList.add('active'));[cite: 6]
-    }
-    if (document.getElementById('closeDrawer')) {[cite: 6]
-        document.getElementById('closeDrawer').addEventListener('click', () => drawer.classList.remove('active'));[cite: 6]
-    }
+    const drawer = document.getElementById('drawerMenu');
+    const menuToggle = document.getElementById('menuToggle');
+    const closeDrawer = document.getElementById('closeDrawer');
 
-    // Toggle Monthly vs Yearly fields in Drawer
-    const reportTypeSelect = document.getElementById('reportType');[cite: 6]
-    if (reportTypeSelect) {[cite: 6]
-        reportTypeSelect.addEventListener('change', handleReportTypeToggle);[cite: 6]
-        handleReportTypeToggle(); // Initial setup on page load[cite: 6]
+    if (menuToggle && drawer) {
+        menuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            drawer.classList.add('active');
+        });
     }
 
-    // Optional Filter Search Event Listener
-    const searchInput = document.getElementById('searchInput');[cite: 6]
-    if (searchInput) {[cite: 6]
-        searchInput.addEventListener('input', () => loadExpenses());[cite: 6]
+    if (closeDrawer && drawer) {
+        closeDrawer.addEventListener('click', (e) => {
+            e.stopPropagation();
+            drawer.classList.remove('active');
+        });
+    }
+
+    const reportTypeSelect = document.getElementById('reportType');
+    if (reportTypeSelect) {
+        reportTypeSelect.addEventListener('change', handleReportTypeToggle);
+        handleReportTypeToggle();
+    }
+
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => loadExpenses());
     }
 });
 
-// Toggle Month dropdown based on Monthly/Yearly selection
-function handleReportTypeToggle() {[cite: 6]
-    const reportType = document.getElementById('reportType').value;[cite: 6]
-    const monthlyGroup = document.getElementById('monthlyGroup');[cite: 6]
-    if (!monthlyGroup) return;[cite: 6]
+function handleReportTypeToggle() {
+    const reportTypeSelect = document.getElementById('reportType');
+    const monthlyGroup = document.getElementById('monthlyGroup');
+    if (!monthlyGroup || !reportTypeSelect) return;
 
-    if (reportType === 'monthly') {[cite: 6]
-        monthlyGroup.style.display = 'block';[cite: 6]
+    if (reportTypeSelect.value === 'monthly') {
+        monthlyGroup.style.display = 'block';
     } else {
-        monthlyGroup.style.display = 'none';[cite: 6]
+        monthlyGroup.style.display = 'none';
     }
 }
 
-// Expenses Fetch Logic (Recent 5 Records Only)
-async function loadExpenses() {[cite: 6]
+async function loadExpenses() {
     try {
-        let query = supabaseClient.from('expenses').select('*');[cite: 6]
+        let query = supabaseClient.from('expenses').select('*');
 
-        const searchInput = document.getElementById('searchInput');[cite: 6]
-        if (searchInput && searchInput.value.trim() !== '') {[cite: 6]
-            query = query.ilike('title', `%${searchInput.value.trim()}%`);[cite: 6]
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput && searchInput.value.trim() !== '') {
+            query = query.ilike('title', `%${searchInput.value.trim()}%`);
         }
 
         const { data, error } = await query
-            .order('expense_date', { ascending: false })[cite: 6]
-            .limit(5);[cite: 6]
+            .order('expense_date', { ascending: false })
+            .limit(5);
 
-        if (error) throw error;[cite: 6]
+        if (error) throw error;
 
-        const tbody = document.getElementById('expenseList');[cite: 6]
-        if (!tbody) return;[cite: 6]
-        tbody.innerHTML = '';[cite: 6]
+        const tbody = document.getElementById('expenseList');
+        if (!tbody) return;
+        tbody.innerHTML = '';
 
-        if (data && data.length > 0) {[cite: 6]
-            data.forEach(item => {[cite: 6]
+        if (data && data.length > 0) {
+            data.forEach(item => {
                 tbody.innerHTML += `
                     <tr>
                         <td>${item.expense_date}</td>
                         <td>${item.title}</td>
                         <td class="amount-td">₹${Number(item.amount).toFixed(2)}</td>
                     </tr>
-                `;[cite: 6]
+                `;
             });
         } else {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No records found.</td></tr>`;[cite: 6]
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No records found.</td></tr>`;
         }
     } catch (err) {
-        console.error("Fetch Error:", err);[cite: 6]
+        console.error("Fetch Error:", err);
     }
 }
 
-// Saved Expense Titles Datalist Suggestions
-async function loadExpenseSuggestions() {[cite: 6]
+async function loadExpenseSuggestions() {
     try {
         const { data, error } = await supabaseClient
-            .from('expenses')[cite: 6]
-            .select('title, amount');[cite: 6]
+            .from('expenses')
+            .select('title, amount');
 
-        if (error) throw error;[cite: 6]
+        if (error) throw error;
 
-        const datalist = document.getElementById('expenseSuggestions');[cite: 6]
-        if (!datalist) return;[cite: 6]
-        datalist.innerHTML = '';[cite: 6]
+        const datalist = document.getElementById('expenseSuggestions');
+        if (!datalist) return;
+        datalist.innerHTML = '';
 
-        if (data && data.length > 0) {[cite: 6]
-            const categoryTotals = {};[cite: 6]
-            data.forEach(item => {[cite: 6]
-                const title = item.title.trim();[cite: 6]
-                const amount = Number(item.amount) || 0;[cite: 6]
-                categoryTotals[title] = (categoryTotals[title] || 0) + amount;[cite: 6]
+        if (data && data.length > 0) {
+            const categoryTotals = {};
+            data.forEach(item => {
+                const title = item.title.trim();
+                const amount = Number(item.amount) || 0;
+                categoryTotals[title] = (categoryTotals[title] || 0) + amount;
             });
 
-            Object.keys(categoryTotals).forEach(title => {[cite: 6]
-                const totalFormatted = categoryTotals[title].toLocaleString('en-IN', { minimumFractionDigits: 2 });[cite: 6]
-                const option = document.createElement('option');[cite: 6]
-                option.value = title; [cite: 6]
-                option.label = `${title} (Total: ₹${totalFormatted})`;[cite: 6]
-                datalist.appendChild(option);[cite: 6]
+            Object.keys(categoryTotals).forEach(title => {
+                const totalFormatted = categoryTotals[title].toLocaleString('en-IN', { minimumFractionDigits: 2 });
+                const option = document.createElement('option');
+                option.value = title; 
+                option.label = `${title} (Total: ₹${totalFormatted})`;
+                datalist.appendChild(option);
             });
         }
     } catch (err) {
-        console.error("Suggestions Fetch Error:", err);[cite: 6]
+        console.error("Suggestions Fetch Error:", err);
     }
 }
 
-// Expense Title input total spend badge indicator
-const titleInput = document.getElementById('title');[cite: 6]
-if (titleInput) {[cite: 6]
-    titleInput.addEventListener('input', async (e) => {[cite: 6]
-        const selectedTitle = e.target.value.trim();[cite: 6]
-        const badge = document.getElementById('categorySpendBadge');[cite: 6]
-        const amountSpan = document.getElementById('categorySpendAmount');[cite: 6]
+const expenseForm = document.getElementById('expenseForm');
+if (expenseForm) {
+    expenseForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const amount = document.getElementById('amount').value;
+        const title = document.getElementById('title').value;
+        const expense_date = document.getElementById('expense_date').value;
 
-        if (!badge || !amountSpan) return;[cite: 6]
-
-        if (!selectedTitle) {[cite: 6]
-            badge.style.display = 'none';[cite: 6]
-            return;[cite: 6]
+        if (!amount || !title || !expense_date) {
+            alert("Kripya saare fields bharein.");
+            return;
         }
 
         try {
-            const { data, error } = await supabaseClient
-                .from('expenses')[cite: 6]
-                .select('amount')[cite: 6]
-                .ilike('title', selectedTitle);[cite: 6]
+            if (editingExpenseId) {
+                const { error } = await supabaseClient
+                    .from('expenses')
+                    .update({ amount: parseFloat(amount), title: title.trim(), expense_date })
+                    .eq('id', editingExpenseId);
 
-            if (error) throw error;[cite: 6]
+                if (error) throw error;
+                editingExpenseId = null;
 
-            if (data && data.length > 0) {[cite: 6]
-                const total = data.reduce((sum, item) => sum + Number(item.amount), 0);[cite: 6]
-                amountSpan.textContent = `₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;[cite: 6]
-                badge.style.display = 'block';[cite: 6]
+                const submitBtn = document.querySelector('#expenseForm button[type="submit"]');
+                if (submitBtn) submitBtn.textContent = 'Save Expense';
             } else {
-                badge.style.display = 'none';[cite: 6]
+                const { error } = await supabaseClient
+                    .from('expenses')
+                    .insert([{ amount: parseFloat(amount), title: title.trim(), expense_date }]);
+
+                if (error) throw error;
             }
+
+            document.getElementById('amount').value = '';
+            document.getElementById('title').value = '';
+            const badge = document.getElementById('categorySpendBadge');
+            if (badge) badge.style.display = 'none';
+            
+            loadExpenses();
+            loadExpenseSuggestions();
         } catch (err) {
-            console.error("Category Spend Error:", err);[cite: 6]
+            alert(`Error: ${err.message}`);
         }
     });
 }
 
-// Save & Update Expense Logic
-document.getElementById('expenseForm').addEventListener('submit', async (e) => {[cite: 6]
-    e.preventDefault();[cite: 6]
-    const amount = document.getElementById('amount').value;[cite: 6]
-    const title = document.getElementById('title').value;[cite: 6]
-    const expense_date = document.getElementById('expense_date').value;[cite: 6]
+// Clean Text Category Tags (Since jsPDF fonts don't render unicode emojis)
+function getCategoryTag(title) {
+    const t = title.toLowerCase();
+    if (t.includes('rent') || t.includes('room') || t.includes('house') || t.includes('flat')) return '[RENT]';
+    if (t.includes('food') || t.includes('grocery') || t.includes('ration') || t.includes('rice') || t.includes('milk') || t.includes('veg')) return '[GROCERY]';
+    if (t.includes('bill') || t.includes('electric') || t.includes('power') || t.includes('current') || t.includes('light')) return '[UTILITY]';
+    if (t.includes('wifi') || t.includes('net') || t.includes('recharge') || t.includes('mobile') || t.includes('phone')) return '[NETWORK]';
+    if (t.includes('auto') || t.includes('cab') || t.includes('bus') || t.includes('petrol') || t.includes('diesel') || t.includes('travel') || t.includes('bike')) return '[TRAVEL]';
+    if (t.includes('med') || t.includes('doctor') || t.includes('pharma') || t.includes('health')) return '[MEDICAL]';
+    if (t.includes('maid') || t.includes('cook') || t.includes('clean') || t.includes('wash')) return '[MAINT]';
+    if (t.includes('gas') || t.includes('cylinder')) return '[GAS]';
+    return '[GENERAL]';
+}
 
-    if (!amount || !title || !expense_date) {[cite: 6]
-        alert("Kripya saare fields bharein.");[cite: 6]
-        return;[cite: 6]
-    }
+// Custom Font Loader Helper
+async function loadFontAsBase64(url) {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(blob);
+    });
+}
 
-    try {
-        if (editingExpenseId) {[cite: 6]
-            const { error } = await supabaseClient
-                .from('expenses')[cite: 6]
-                .update({ amount: parseFloat(amount), title: title.trim(), expense_date })[cite: 6]
-                .eq('id', editingExpenseId);[cite: 6]
+// ALL-CAPS BOLD PDF GENERATOR WITH CLEAN CATEGORY TAGS
+const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+if (downloadPdfBtn) {
+    downloadPdfBtn.addEventListener('click', async () => {
+        const reportTypeSelect = document.getElementById('reportType');
+        const monthSelect = document.getElementById('pdfMonth');
+        const yearInput = document.getElementById('pdfYear');
 
-            if (error) throw error;[cite: 6]
-            editingExpenseId = null;[cite: 6]
+        const reportType = reportTypeSelect ? reportTypeSelect.value : 'monthly';
+        const month = monthSelect ? monthSelect.value : '';
+        const year = yearInput ? yearInput.value : '';
 
-            const submitBtn = document.querySelector('#expenseForm button[type="submit"]');[cite: 6]
-            if (submitBtn) submitBtn.textContent = 'Save Expense';[cite: 6]
-        } else {
-            const { error } = await supabaseClient
-                .from('expenses')[cite: 6]
-                .insert([{ amount: parseFloat(amount), title: title.trim(), expense_date }]);[cite: 6]
-
-            if (error) throw error;[cite: 6]
+        if (!year) {
+            alert('Kripya Year enter karein (e.g. 2026).');
+            return;
         }
 
-        document.getElementById('amount').value = '';[cite: 6]
-        document.getElementById('title').value = '';[cite: 6]
-        const badge = document.getElementById('categorySpendBadge');[cite: 6]
-        if (badge) badge.style.display = 'none';[cite: 6]
-        
-        loadExpenses();[cite: 6]
-        loadExpenseSuggestions();[cite: 6]
-    } catch (err) {
-        alert(`Error: ${err.message}`);[cite: 6]
-    }
-});
+        try {
+            let query = supabaseClient.from('expenses').select('*');
 
-// ADVANCED & PROFESSIONAL PDF GENERATOR
-document.getElementById('downloadPdfBtn').addEventListener('click', async () => {[cite: 6]
-    const reportType = document.getElementById('reportType').value;[cite: 6]
-    const month = document.getElementById('pdfMonth').value;[cite: 6]
-    const year = document.getElementById('pdfYear').value;[cite: 6]
+            if (reportType === 'monthly' && month) {
+                const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+                const lastDay = new Date(year, month, 0).getDate();
+                const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
+                query = query.gte('expense_date', startDate).lte('expense_date', endDate);
+            } else {
+                query = query.gte('expense_date', `${year}-01-01`).lte('expense_date', `${year}-12-31`);
+            }
 
-    if (!year) {[cite: 6]
-        alert('Kripya Year enter karein (e.g. 2026).');[cite: 6]
-        return;[cite: 6]
-    }
+            const { data, error } = await query.order('expense_date', { ascending: true });
 
-    try {
-        let query = supabaseClient.from('expenses').select('*');[cite: 6]
+            if (error) throw error;
+            if (!data || data.length === 0) {
+                alert(`Selected duration ke liye koi data nahi milaa.`);
+                return;
+            }
 
-        if (reportType === 'monthly' && month) {[cite: 6]
-            const startDate = `${year}-${String(month).padStart(2, '0')}-01`;[cite: 6]
-            const lastDay = new Date(year, month, 0).getDate();[cite: 6]
-            const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;[cite: 6]
-            query = query.gte('expense_date', startDate).lte('expense_date', endDate);[cite: 6]
-        } else {
-            query = query.gte('expense_date', `${year}-01-01`).lte('expense_date', `${year}-12-31`);[cite: 6]
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+            try {
+                const fontBoldBase64 = await loadFontAsBase64("https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-700-normal.ttf");
+
+                doc.addFileToVFS('PlusJakartaSans-Bold.ttf', fontBoldBase64);
+                doc.addFont('PlusJakartaSans-Bold.ttf', 'PlusJakartaSans', 'bold');
+
+                doc.setFont("PlusJakartaSans", "bold");
+            } catch (fErr) {
+                console.warn("Custom font fetch failed, falling back to Helvetica Bold:", fErr);
+                doc.setFont("helvetica", "bold");
+            }
+
+            const activeFont = doc.getFont().fontName;
+
+            const monthNames = ["", "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+            const periodText = reportType === 'monthly' ? `${monthNames[month]} ${year}` : `YEAR ${year}`;
+            const generatedDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+            const docRef = `BK-${Math.floor(100000 + Math.random() * 900000)}`;
+
+            const groupedMap = {};
+            let grandTotal = 0;
+
+            data.forEach(item => {
+                const titleKey = item.title.trim().toUpperCase();
+                const amt = Number(item.amount) || 0;
+                grandTotal += amt;
+
+                if (!groupedMap[titleKey]) {
+                    groupedMap[titleKey] = { totalAmount: 0, count: 0, rawTitle: item.title.trim() };
+                }
+                groupedMap[titleKey].totalAmount += amt;
+                groupedMap[titleKey].count += 1;
+            });
+
+            // 1. BRAND HEADER (ALL CAPS)
+            doc.setFont(activeFont, "bold");
+            doc.setFontSize(22);
+            doc.setTextColor(15, 23, 42); 
+            doc.text("BARIR KORCHA", 14, 20);
+
+            doc.setFontSize(8.5);
+            doc.setFont(activeFont, "bold");
+            doc.setTextColor(71, 85, 105);
+            doc.text("EXPENSE STATEMENT & LEDGER", 14, 26);
+
+            // CURVED META CARD (TOP RIGHT)
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(203, 213, 225);
+            doc.setLineWidth(0.3);
+            doc.roundedRect(130, 10, 66, 22, 4, 4, 'FD');
+
+            doc.setFontSize(7.5);
+            doc.setFont(activeFont, "bold");
+            doc.setTextColor(71, 85, 105);
+            doc.text("PERIOD:", 134, 16);
+            doc.text("DATE:", 134, 21);
+            doc.text("REF NO:", 134, 26);
+
+            doc.setTextColor(15, 23, 42);
+            doc.text(periodText, 153, 16);
+            doc.text(generatedDate, 153, 21);
+            doc.text(docRef, 153, 26);
+
+            // 2. CURVED SUMMARY CARDS (ALL CAPS & TAGS)
+            const rx = 4;
+
+            // Card 1: Total Transactions
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(203, 213, 225);
+            doc.roundedRect(14, 38, 56, 20, rx, rx, 'FD');
+            doc.setFontSize(7.5);
+            doc.setFont(activeFont, "bold");
+            doc.setTextColor(71, 85, 105);
+            doc.text("TOTAL TRANSACTIONS 💵", 19, 45);
+            doc.setFontSize(11);
+            doc.setTextColor(15, 23, 42);
+            doc.text(`${data.length} RECORDS`, 19, 52);
+
+            // Card 2: Unique Categories
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(76, 38, 56, 20, rx, rx, 'FD');
+            doc.setFontSize(7.5);
+            doc.setFont(activeFont, "bold");
+            doc.setTextColor(71, 85, 105);
+            doc.text("UNIQUE CATEGORIES", 81, 45);
+            doc.setFontSize(11);
+            doc.setTextColor(15, 23, 42);
+            doc.text(`${Object.keys(groupedMap).length} ITEMS`, 81, 52);
+
+            // Card 3: Total Spent
+            doc.setFillColor(254, 242, 242);
+            doc.setDrawColor(252, 165, 165);
+            doc.roundedRect(138, 38, 58, 20, rx, rx, 'FD');
+            doc.setFontSize(7.5);
+            doc.setFont(activeFont, "bold");
+            doc.setTextColor(185, 28, 28);
+            doc.text("TOTAL SPENT 💰", 143, 45);
+            doc.setFontSize(12);
+            doc.setTextColor(153, 27, 27);
+            doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 143, 52);
+
+            // 3. LEDGER TABLE SECTION (ALL CAPS & TAGS)
+            doc.setFontSize(10.5);
+            doc.setFont(activeFont, "bold");
+            doc.setTextColor(15, 23, 42);
+            doc.text("EXPENSE BREAKDOWN 📊", 14, 67);
+
+            const tableRows = Object.keys(groupedMap).map((title, idx) => {
+                const totalAmt = groupedMap[title].totalAmount;
+                const count = groupedMap[title].count;
+                const tag = getCategoryTag(groupedMap[title].rawTitle);
+
+                return [
+                    `#${String(idx + 1).padStart(2, '0')}`,
+                    `${tag} ${title}`,
+                    `${count} ${count > 1 ? 'ENTRIES' : 'ENTRY'}`,
+                    `₹${totalAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                ];
+            });
+
+            doc.autoTable({
+                startY: 71,
+                head: [['#', 'EXPENSE DETAILS', 'FREQUENCY', 'TOTAL AMOUNT']],
+                body: tableRows,
+                theme: 'striped',
+                headStyles: { 
+                    fillColor: [15, 23, 42], 
+                    textColor: [255, 255, 255],
+                    fontStyle: 'bold',
+                    font: activeFont,
+                    fontSize: 8.5,
+                    cellPadding: 4
+                },
+                bodyStyles: { 
+                    font: activeFont,
+                    fontStyle: 'bold',
+                    fontSize: 8.5, 
+                    textColor: [15, 23, 42],
+                    cellPadding: 3.8
+                },
+                alternateRowStyles: { fillColor: [248, 250, 252] },
+                columnStyles: {
+                    0: { cellWidth: 15, halign: 'center', fontStyle: 'bold', textColor: [71, 85, 105] },
+                    1: { cellWidth: 95, fontStyle: 'bold' },
+                    2: { cellWidth: 32, halign: 'center', fontStyle: 'bold' },
+                    3: { cellWidth: 40, halign: 'right', fontStyle: 'bold', textColor: [185, 28, 28] }
+                },
+                margin: { left: 14, right: 14 }
+            });
+
+            // 4. FOOTER (ALL CAPS)
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                
+                doc.setDrawColor(203, 213, 225);
+                doc.line(14, 275, 196, 275);
+
+                doc.setFontSize(8);
+                doc.setFont(activeFont, "bold");
+                doc.setTextColor(100, 116, 139);
+                doc.text("THIS IS A COMPUTER-GENERATED STATEMENT FROM BARIR KORCHA.", 14, 282);
+                doc.text(`PAGE ${i} OF ${pageCount}`, 178, 282);
+            }
+
+            const fileName = reportType === 'monthly' ? `BARIR_KORCHA_${monthNames[month]}_${year}.pdf` : `BARIR_KORCHA_${year}.pdf`;
+            doc.save(fileName);
+
+            const drawer = document.getElementById('drawerMenu');
+            if (drawer) drawer.classList.remove('active');
+
+        } catch (err) {
+            alert(`PDF Error: ${err.message}`);
         }
-
-        const { data, error } = await query.order('expense_date', { ascending: true });[cite: 6]
-
-        if (error) throw error;[cite: 6]
-        if (!data || data.length === 0) {[cite: 6]
-            alert(`Selected duration (${reportType === 'monthly' ? 'Month ' + month + ' ' : ''}${year}) ke liye koi data nahi milaa.`);[cite: 6]
-            return;[cite: 6]
-        }
-
-        const { jsPDF } = window.jspdf;[cite: 6]
-        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-
-        const monthNames = ["", "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];[cite: 6]
-        const periodText = reportType === 'monthly' ? `${monthNames[month]} ${year}` : `Full Year ${year}`;[cite: 6]
-
-        // ----------------- 1. PREMIUM HEADER -----------------
-        doc.setFillColor(15, 23, 42); 
-        doc.rect(0, 0, 210, 38, 'F');
-
-        doc.setFillColor(16, 185, 129); 
-        doc.rect(0, 38, 210, 2, 'F');
-
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(255, 255, 255);
-        doc.setFontSize(22);
-        doc.text("barir korcha", 14, 20);
-
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(148, 163, 184);
-        doc.text("FINANCIAL STATEMENT & EXPENSE SUMMARY", 14, 28);
-
-        // Status Badge
-        doc.setFillColor(30, 41, 59);
-        doc.roundedRect(145, 10, 51, 16, 3, 3, 'F');
-        doc.setFontSize(8);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(52, 211, 153);
-        doc.text("VERIFIED STATEMENT", 149, 20);
-
-        // ----------------- 2. METRICS CARDS -----------------
-        let totalAmount = 0;[cite: 6]
-        const categoryTotals = {};[cite: 6]
-
-        const rows = data.map((item, idx) => {[cite: 6]
-            const itemAmt = Number(item.amount);[cite: 6]
-            totalAmount += itemAmt;[cite: 6]
-
-            const cleanTitle = item.title.trim();[cite: 6]
-            categoryTotals[cleanTitle] = (categoryTotals[cleanTitle] || 0) + itemAmt;[cite: 6]
-
-            return [
-                String(idx + 1).padStart(2, '0'), 
-                item.expense_date, 
-                item.title, 
-                `INR ${itemAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`[cite: 6]
-            ];
-        });
-
-        // Box 1: Period
-        doc.setFillColor(248, 250, 252);
-        doc.roundedRect(14, 46, 58, 22, 3, 3, 'F');
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(100, 116, 139);
-        doc.text("STATEMENT PERIOD", 18, 54);
-        doc.setFontSize(10);
-        doc.setTextColor(15, 23, 42);
-        doc.text(periodText, 18, 62);
-
-        // Box 2: Total Items
-        doc.setFillColor(248, 250, 252);
-        doc.roundedRect(76, 46, 58, 22, 3, 3, 'F');
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(100, 116, 139);
-        doc.text("TOTAL TRANSACTIONS", 80, 54);
-        doc.setFontSize(10);
-        doc.setTextColor(15, 23, 42);
-        doc.text(`${data.length} Records`, 80, 62);
-
-        // Box 3: Total Spent
-        doc.setFillColor(254, 242, 242);
-        doc.roundedRect(138, 46, 58, 22, 3, 3, 'F');
-        doc.setFontSize(7);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(220, 38, 38);
-        doc.text("TOTAL AMOUNT SPENT", 142, 54);
-        doc.setFontSize(11);
-        doc.setTextColor(185, 28, 28);
-        doc.text(`INR ${totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 142, 62);
-
-        // ----------------- 3. CATEGORY SUMMARY TABLE -----------------
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(15, 23, 42);
-        doc.text("Category Breakdown", 14, 78);
-
-        const categoryRows = Object.keys(categoryTotals).map((title, i) => [
-            String(i + 1).padStart(2, '0'),
-            title,
-            `INR ${categoryTotals[title].toLocaleString('en-IN', { minimumFractionDigits: 2 })}`[cite: 6]
-        ]);
-
-        doc.autoTable({[cite: 6]
-            startY: 82,
-            head: [['#', 'Category Name', 'Total Amount']],
-            body: categoryRows,
-            theme: 'striped',
-            headStyles: { 
-                fillColor: [79, 70, 229], 
-                textColor: [255, 255, 255],
-                fontStyle: 'bold',
-                fontSize: 8.5
-            },
-            bodyStyles: { fontSize: 8.5, textColor: [30, 41, 59] },
-            alternateRowStyles: { fillColor: [245, 247, 250] },
-            columnStyles: {
-                0: { cellWidth: 12, halign: 'center' },
-                1: { cellWidth: 115 },
-                2: { cellWidth: 55, halign: 'right', fontStyle: 'bold', textColor: [220, 38, 38] }
-            },
-            margin: { left: 14, right: 14 }[cite: 6]
-        });
-
-        // ----------------- 4. ALL TRANSACTIONS TABLE -----------------
-        const nextY = doc.lastAutoTable.finalY + 10;
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(15, 23, 42);
-        doc.text("Transaction History", 14, nextY);
-
-        doc.autoTable({[cite: 6]
-            startY: nextY + 4,
-            head: [['#', 'Date', 'Expense Details', 'Amount']],
-            body: rows,
-            theme: 'striped',
-            headStyles: { 
-                fillColor: [15, 23, 42], 
-                textColor: [255, 255, 255],
-                fontStyle: 'bold',
-                fontSize: 8.5
-            },
-            bodyStyles: { fontSize: 8.5, textColor: [30, 41, 59] },
-            alternateRowStyles: { fillColor: [248, 250, 252] },[cite: 6]
-            columnStyles: {
-                0: { cellWidth: 12, halign: 'center' },
-                1: { cellWidth: 32 },
-                2: { cellWidth: 91 },
-                3: { cellWidth: 47, halign: 'right', fontStyle: 'bold', textColor: [220, 38, 38] }
-            },
-            margin: { left: 14, right: 14 }[cite: 6]
-        });
-
-        // ----------------- 5. FOOTER -----------------
-        const pageCount = doc.internal.getNumberOfPages();[cite: 6]
-        for (let i = 1; i <= pageCount; i++) {[cite: 6]
-            doc.setPage(i);[cite: 6]
-            
-            doc.setDrawColor(226, 232, 240);
-            doc.line(14, 280, 196, 280);
-
-            doc.setFontSize(8);[cite: 6]
-            doc.setFont("helvetica", "normal");
-            doc.setTextColor(148, 163, 184);[cite: 6]
-            doc.text(`Generated automatically via barir korcha`, 14, 286);
-            doc.text(`Page ${i} of ${pageCount}`, 182, 286);
-        }
-
-        const fileName = reportType === 'monthly' ? `Barir_Korcha_${monthNames[month]}_${year}.pdf` : `Barir_Korcha_Year_${year}.pdf`;[cite: 6]
-        doc.save(fileName);[cite: 6]
-
-        const drawer = document.getElementById('drawerMenu');[cite: 6]
-        if (drawer) drawer.classList.remove('active');[cite: 6]
-
-    } catch (err) {
-        alert(`PDF Error: ${err.message}`);[cite: 6]
-    }
-});
+    });
+}
