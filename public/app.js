@@ -46,12 +46,12 @@ async function loadExpenses() {
     }
 }
 
-// Saved Expense Titles ko Fetch karke Dropdown List me load karne ka logic
+// Saved Expense Titles & Unke Total Amount ko Fetch karke Dropdown List me dikhane ka logic
 async function loadExpenseSuggestions() {
     try {
         const { data, error } = await supabaseClient
             .from('expenses')
-            .select('title');
+            .select('title, amount');
 
         if (error) throw error;
 
@@ -59,11 +59,20 @@ async function loadExpenseSuggestions() {
         datalist.innerHTML = '';
 
         if (data && data.length > 0) {
-            // Duplicate titles remove karne ke liye Set ka use kiya hai
-            const uniqueTitles = [...new Set(data.map(item => item.title.trim()))];
-            uniqueTitles.forEach(title => {
+            // Har title ke total amount ko calculate karna
+            const categoryTotals = {};
+            data.forEach(item => {
+                const title = item.title.trim();
+                const amount = Number(item.amount) || 0;
+                categoryTotals[title] = (categoryTotals[title] || 0) + amount;
+            });
+
+            // Dropdown me Name aur uske aage Total Amount dikhana (e.g. Bazar (₹1,500.00))
+            Object.keys(categoryTotals).forEach(title => {
+                const totalFormatted = categoryTotals[title].toLocaleString('en-IN', { minimumFractionDigits: 2 });
                 const option = document.createElement('option');
-                option.value = title;
+                option.value = title; 
+                option.label = `${title} (Total: ₹${totalFormatted})`; // List me total amount dikhega
                 datalist.appendChild(option);
             });
         }
@@ -72,7 +81,7 @@ async function loadExpenseSuggestions() {
     }
 }
 
-// Expense Title Select/Type karte waqt uska Total Spend calculate karna
+// Expense Title Select/Type karte waqt uska Total Spend Badge dikhana
 document.getElementById('title').addEventListener('input', async (e) => {
     const selectedTitle = e.target.value.trim();
     const badge = document.getElementById('categorySpendBadge');
@@ -122,7 +131,7 @@ document.getElementById('expenseForm').addEventListener('submit', async (e) => {
         document.getElementById('categorySpendBadge').style.display = 'none';
         
         loadExpenses();
-        loadExpenseSuggestions(); // Naya Title Datalist me update karein
+        loadExpenseSuggestions(); // Naya Title aur naya Total update karein
     } catch (err) {
         alert(`Error: ${err.message}`);
     }
