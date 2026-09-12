@@ -356,7 +356,7 @@ if (downloadPdfBtn) {
             doc.setTextColor(15, 23, 42);
             doc.text(`${Object.keys(groupedMap).length} Items`, 80, 52);
 
-            // TOTAL NET EXPENSE KPI CARD (UPDATED TO RED THEME)
+            // TOTAL NET EXPENSE KPI CARD (RED THEME)
             doc.setFillColor(254, 242, 242);
             doc.setDrawColor(254, 202, 202);
             doc.roundedRect(138, 38, 58, 20, rx, rx, 'FD');
@@ -378,7 +378,7 @@ if (downloadPdfBtn) {
                 const tag = getCategoryTag(groupedMap[title].rawTitle);
 
                 return [
-                    `#${String(idx + 1).padStart(2, '0')}`,
+                    `${idx + 1}`, // Clean numbers: 1, 2, 3...
                     `${tag}${title}`,
                     `${count} ${count > 1 ? 'Entries' : 'Entry'}`,
                     `₹${totalAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
