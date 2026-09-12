@@ -206,7 +206,7 @@ async function loadFontAsBase64(url) {
     });
 }
 
-// PDF GENERATOR (SUPPORTING SPECIFIC DATE / MONTHLY / YEARLY)
+// PDF GENERATOR WITH HIGHEST EXPENSE RED HIGHLIGHT
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 if (downloadPdfBtn) {
     downloadPdfBtn.addEventListener('click', async () => {
@@ -287,6 +287,7 @@ if (downloadPdfBtn) {
 
             const groupedMap = {};
             let grandTotal = 0;
+            let maxExpenseAmount = 0; // Highest Expense Amount Track karne ke liye
 
             data.forEach(item => {
                 const titleKey = item.title.trim().toUpperCase();
@@ -298,6 +299,13 @@ if (downloadPdfBtn) {
                 }
                 groupedMap[titleKey].totalAmount += amt;
                 groupedMap[titleKey].count += 1;
+            });
+
+            // Sabse bada expense amount nikala
+            Object.values(groupedMap).forEach(item => {
+                if (item.totalAmount > maxExpenseAmount) {
+                    maxExpenseAmount = item.totalAmount;
+                }
             });
 
             // BRAND HEADER
@@ -378,7 +386,7 @@ if (downloadPdfBtn) {
                 const tag = getCategoryTag(groupedMap[title].rawTitle);
 
                 return [
-                    `${idx + 1}`, // Clean numbers: 1, 2, 3...
+                    `${idx + 1}`,
                     `${tag}${title}`,
                     `${count} ${count > 1 ? 'Entries' : 'Entry'}`,
                     `₹${totalAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
@@ -412,7 +420,22 @@ if (downloadPdfBtn) {
                     0: { cellWidth: 14, halign: 'center', textColor: [100, 116, 139] },
                     1: { cellWidth: 104 },
                     2: { cellWidth: 30, halign: 'center' },
-                    3: { cellWidth: 34, halign: 'right', textColor: [185, 28, 28] }
+                    3: { cellWidth: 34, halign: 'right' }
+                },
+                didParseCell: function(dataCell) {
+                    // Check kar rahe hain ki kya cell 4th column (Amount) ka hai
+                    if (dataCell.section === 'body' && dataCell.column.index === 3) {
+                        const rawText = dataCell.cell.raw.replace(/[^0-9.]/g, '');
+                        const cellAmount = parseFloat(rawText);
+
+                        // Agar ye amount maximum expense ke barabar hai toh isko Red kar do
+                        if (cellAmount === maxExpenseAmount && maxExpenseAmount > 0) {
+                            dataCell.cell.styles.textColor = [185, 28, 28]; // Bright Red
+                            dataCell.cell.styles.fontStyle = 'bold';
+                        } else {
+                            dataCell.cell.styles.textColor = [71, 85, 105]; // Slate Neutral Color
+                        }
+                    }
                 },
                 margin: { left: 14, right: 14 }
             });
