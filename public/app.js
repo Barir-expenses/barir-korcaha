@@ -356,14 +356,15 @@ if (downloadPdfBtn) {
             doc.setTextColor(15, 23, 42);
             doc.text(`${Object.keys(groupedMap).length} Items`, 80, 52);
 
-            doc.setFillColor(240, 253, 244);
-            doc.setDrawColor(187, 247, 208);
+            // TOTAL NET EXPENSE KPI CARD (UPDATED TO RED THEME)
+            doc.setFillColor(254, 242, 242);
+            doc.setDrawColor(254, 202, 202);
             doc.roundedRect(138, 38, 58, 20, rx, rx, 'FD');
             doc.setFontSize(7);
-            doc.setTextColor(22, 101, 52);
+            doc.setTextColor(153, 27, 27);
             doc.text("TOTAL NET EXPENSE", 142, 44);
             doc.setFontSize(12);
-            doc.setTextColor(21, 128, 61);
+            doc.setTextColor(185, 28, 28);
             doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 142, 52);
 
             // TABLE
