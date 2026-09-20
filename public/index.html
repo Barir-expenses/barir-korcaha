@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>BARIR KORCHA</title>
     
     <!-- Premium Google Font (Poppins) -->
@@ -100,8 +100,30 @@
         
         input, select {
             width: 100%; padding: 0.85rem 1rem; border: 1.5px solid var(--border);
-            border-radius: 12px; font-size: 0.95rem; background: rgba(255, 255, 255, 0.9); color: var(--text);
+            border-radius: 12px; font-size: 0.95rem; background-color: #ffffff !important; color: #000000 !important;
             outline: none; transition: all 0.2s ease-in-out; font-weight: 500;
+        }
+
+        /* Chrome/Safari Autofill & Datalist Dropdown White Background & Black Text Overrides */
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover, 
+        input:-webkit-autofill:focus,
+        input:-webkit-autofill:active {
+            -webkit-text-fill-color: #000000 !important;
+            -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
+        /* Force Datalist Popup & Select Option styling */
+        datalist, option, select {
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
+
+        /* Specific input title styles */
+        #title, #category {
+            background-color: #ffffff !important;
+            color: #000000 !important;
         }
 
         /* RED TEXT FOR AMOUNT INPUT */
@@ -111,11 +133,22 @@
             font-size: 1.05rem;
         }
 
+        /* Mobile Native Date Picker Styling */
+        input[type="date"] {
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            position: relative;
+            cursor: pointer;
+            background-color: #ffffff !important;
+            color: #000000 !important;
+        }
+
         /* Calendar Picker Wrapper */
         .date-wrapper { position: relative; display: flex; align-items: center; }
         .date-wrapper::after { content: '📅'; position: absolute; right: 15px; pointer-events: none; font-size: 1.1rem; }
 
-        input:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); background: #ffffff; }
+        input:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); background-color: #ffffff !important; }
 
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 
@@ -194,7 +227,7 @@
         <div class="form-group" id="specificDateGroup" style="display: none;">
             <label>Select Date</label>
             <div class="date-wrapper">
-                <input type="date" id="pdfSpecificDate">
+                <input type="date" id="pdfSpecificDate" onfocus="this.showPicker && this.showPicker()">
             </div>
         </div>
 
@@ -232,9 +265,19 @@
         <div class="card card-add">
             <div class="card-title">➕ Add New Expense</div>
             <form id="expenseForm">
+                
+                <!-- Category Select Dropdown -->
+                <div class="form-group">
+                    <label>Expense Category</label>
+                    <select id="category">
+                        <option value="GENERAL" selected>🛒 Daily Household / General</option>
+                        <option value="HOME">🏠 Home Construction (Ghar Banwana)</option>
+                    </select>
+                </div>
+
                 <div class="form-group">
                     <label>Expense Name / Details</label>
-                    <input type="text" id="title" list="expenseSuggestions" placeholder="Type or select expense..." required autocomplete="off">
+                    <input type="text" id="title" list="expenseSuggestions" placeholder="Type cement, rod, mistri or item name..." required autocomplete="off">
                     <datalist id="expenseSuggestions"></datalist>
                     
                     <!-- Total Spend Badge -->
@@ -250,7 +293,7 @@
                     <div class="form-group">
                         <label>Date</label>
                         <div class="date-wrapper">
-                            <input type="date" id="expense_date" required>
+                            <input type="date" id="expense_date" required onfocus="this.showPicker && this.showPicker()">
                         </div>
                     </div>
                 </div>
