@@ -50,6 +50,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (searchInput) {
         searchInput.addEventListener('input', () => loadExpenses());
     }
+
+    // Category switch hone par list aur suggestions reload honge
+    const categorySelect = document.getElementById('category');
+    if (categorySelect) {
+        categorySelect.addEventListener('change', () => {
+            loadExpenses();
+            loadExpenseSuggestions();
+        });
+    }
 });
 
 function handleReportTypeToggle() {
@@ -67,9 +76,17 @@ function handleReportTypeToggle() {
     if (specificDateGroup) specificDateGroup.style.display = (val === 'specific') ? 'block' : 'none';
 }
 
+// Category ke basis par sahi Table select karne ka helper function
+function getTableName() {
+    const categorySelect = document.getElementById('category');
+    const selectedCategory = categorySelect ? categorySelect.value : 'GENERAL';
+    return (selectedCategory === 'HOME') ? 'home_expenses' : 'expenses';
+}
+
 async function loadExpenses() {
     try {
-        let query = supabaseClient.from('expenses').select('*');
+        const tableName = getTableName();
+        let query = supabaseClient.from(tableName).select('*');
 
         const searchInput = document.getElementById('searchInput');
         if (searchInput && searchInput.value.trim() !== '') {
@@ -78,7 +95,7 @@ async function loadExpenses() {
 
         const { data, error } = await query
             .order('expense_date', { ascending: false })
-            .limit(5);
+            .limit(10);
 
         if (error) throw error;
 
@@ -88,16 +105,17 @@ async function loadExpenses() {
 
         if (data && data.length > 0) {
             data.forEach(item => {
+                const categoryBadge = tableName === 'home_expenses' ? '🏠 House Const.' : '🛒 Daily';
                 tbody.innerHTML += `
                     <tr>
                         <td>${item.expense_date}</td>
-                        <td>${item.title}</td>
+                        <td><small style="color:#6366f1; font-weight:700;">[${categoryBadge}]</small> ${item.title}</td>
                         <td class="amount-td">₹${Number(item.amount).toFixed(2)}</td>
                     </tr>
                 `;
             });
         } else {
-            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No records found.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No records found in ${tableName === 'home_expenses' ? 'House Construction' : 'Daily Household'}.</td></tr>`;
         }
     } catch (err) {
         console.error("Fetch Error:", err);
@@ -106,8 +124,9 @@ async function loadExpenses() {
 
 async function loadExpenseSuggestions() {
     try {
+        const tableName = getTableName();
         const { data, error } = await supabaseClient
-            .from('expenses')
+            .from(tableName)
             .select('title, amount');
 
         if (error) throw error;
@@ -142,10 +161,11 @@ if (expenseForm) {
     expenseForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const amount = document.getElementById('amount').value;
-        const title = document.getElementById('title').value;
+        const rawTitle = document.getElementById('title').value.trim();
         const expense_date = document.getElementById('expense_date').value;
+        const tableName = getTableName();
 
-        if (!amount || !title || !expense_date) {
+        if (!amount || !rawTitle || !expense_date) {
             alert("Kripya saare fields bharein.");
             return;
         }
@@ -153,8 +173,8 @@ if (expenseForm) {
         try {
             if (editingExpenseId) {
                 const { error } = await supabaseClient
-                    .from('expenses')
-                    .update({ amount: parseFloat(amount), title: title.trim(), expense_date })
+                    .from(tableName)
+                    .update({ amount: parseFloat(amount), title: rawTitle, expense_date })
                     .eq('id', editingExpenseId);
 
                 if (error) throw error;
@@ -164,8 +184,8 @@ if (expenseForm) {
                 if (submitBtn) submitBtn.textContent = 'Save Expense';
             } else {
                 const { error } = await supabaseClient
-                    .from('expenses')
-                    .insert([{ amount: parseFloat(amount), title: title.trim(), expense_date }]);
+                    .from(tableName)
+                    .insert([{ amount: parseFloat(amount), title: rawTitle, expense_date }]);
 
                 if (error) throw error;
             }
@@ -183,19 +203,6 @@ if (expenseForm) {
     });
 }
 
-function getCategoryTag(title) {
-    const t = title.toLowerCase();
-    if (t.includes('rent') || t.includes('room') || t.includes('house') || t.includes('flat')) return '[RENT] ';
-    if (t.includes('food') || t.includes('grocery') || t.includes('ration') || t.includes('rice') || t.includes('milk') || t.includes('veg')) return '[GROCERY] ';
-    if (t.includes('bill') || t.includes('electric') || t.includes('power') || t.includes('current') || t.includes('light')) return '[UTILITY] ';
-    if (t.includes('wifi') || t.includes('net') || t.includes('recharge') || t.includes('mobile') || t.includes('phone')) return '[NETWORK] ';
-    if (t.includes('med') || t.includes('doctor') || t.includes('pharma') || t.includes('health')) return '[MEDICAL] ';
-    if (t.includes('maid') || t.includes('cook') || t.includes('clean') || t.includes('wash')) return '[MAINT] ';
-    if (t.includes('gas') || t.includes('cylinder')) return '[GAS] ';
-    
-    return '';
-}
-
 async function loadFontAsBase64(url) {
     const response = await fetch(url);
     const blob = await response.blob();
@@ -206,7 +213,7 @@ async function loadFontAsBase64(url) {
     });
 }
 
-// PDF GENERATOR WITH HIGHEST EXPENSE RED HIGHLIGHT
+// SECTION-WISE PDF GENERATOR (Daily Household & House Construction Grouped)
 const downloadPdfBtn = document.getElementById('downloadPdfBtn');
 if (downloadPdfBtn) {
     downloadPdfBtn.addEventListener('click', async () => {
@@ -221,48 +228,49 @@ if (downloadPdfBtn) {
         const targetDate = specificDateInput ? specificDateInput.value : '';
 
         try {
-            let query = supabaseClient.from('expenses').select('*');
+            let qDaily = supabaseClient.from('expenses').select('*');
+            let qHome = supabaseClient.from('home_expenses').select('*');
             let periodText = '';
             let fileName = '';
 
             if (reportType === 'specific') {
-                if (!targetDate) {
-                    alert('Kripya specific date select karein.');
-                    return;
-                }
-                query = query.eq('expense_date', targetDate);
+                if (!targetDate) { alert('Kripya specific date select karein.'); return; }
+                qDaily = qDaily.eq('expense_date', targetDate);
+                qHome = qHome.eq('expense_date', targetDate);
                 
                 const dObj = new Date(targetDate);
                 periodText = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
                 fileName = `BARIR_KORCHA_DATE_${targetDate}.pdf`;
             } else if (reportType === 'monthly') {
-                if (!year || !month) {
-                    alert('Kripya Month aur Year select karein.');
-                    return;
-                }
+                if (!year || !month) { alert('Kripya Month aur Year select karein.'); return; }
                 const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
                 const lastDay = new Date(year, month, 0).getDate();
                 const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
-                query = query.gte('expense_date', startDate).lte('expense_date', endDate);
+                
+                qDaily = qDaily.gte('expense_date', startDate).lte('expense_date', endDate);
+                qHome = qHome.gte('expense_date', startDate).lte('expense_date', endDate);
 
                 const monthNames = ["", "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
                 periodText = `${monthNames[month]} ${year}`;
                 fileName = `BARIR_KORCHA_${monthNames[month]}_${year}.pdf`;
             } else {
-                if (!year) {
-                    alert('Kripya Year enter karein (e.g. 2026).');
-                    return;
-                }
-                query = query.gte('expense_date', `${year}-01-01`).lte('expense_date', `${year}-12-31`);
+                if (!year) { alert('Kripya Year enter karein (e.g. 2026).'); return; }
+                qDaily = qDaily.gte('expense_date', `${year}-01-01`).lte('expense_date', `${year}-12-31`);
+                qHome = qHome.gte('expense_date', `${year}-01-01`).lte('expense_date', `${year}-12-31`);
                 periodText = `YEAR ${year}`;
                 fileName = `BARIR_KORCHA_${year}.pdf`;
             }
 
-            const { data, error } = await query.order('expense_date', { ascending: true });
+            const [resDaily, resHome] = await Promise.all([qDaily, qHome]);
 
-            if (error) throw error;
-            if (!data || data.length === 0) {
-                alert(`Selected date/duration ke liye koi records nahi mile.`);
+            if (resDaily.error) throw resDaily.error;
+            if (resHome.error) throw resHome.error;
+
+            const dailyData = resDaily.data || [];
+            const homeData = resHome.data || [];
+
+            if (dailyData.length === 0 && homeData.length === 0) {
+                alert(`Selected duration ke liye koi records nahi mile.`);
                 return;
             }
 
@@ -271,13 +279,10 @@ if (downloadPdfBtn) {
 
             try {
                 const fontBoldBase64 = await loadFontAsBase64("https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-700-normal.ttf");
-
                 doc.addFileToVFS('PlusJakartaSans-Bold.ttf', fontBoldBase64);
                 doc.addFont('PlusJakartaSans-Bold.ttf', 'PlusJakartaSans', 'bold');
-
                 doc.setFont("PlusJakartaSans", "bold");
             } catch (fErr) {
-                console.warn("Custom font fetch failed, falling back to Helvetica Bold:", fErr);
                 doc.setFont("helvetica", "bold");
             }
 
@@ -285,27 +290,30 @@ if (downloadPdfBtn) {
             const generatedDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
             const docRef = `BK-${Math.floor(100000 + Math.random() * 900000)}`;
 
-            const groupedMap = {};
-            let grandTotal = 0;
-            let maxExpenseAmount = 0; // Highest Expense Amount Track karne ke liye
+            // Totals Calculation & Items Grouping Helper
+            const processGroup = (items) => {
+                const map = {};
+                let total = 0;
+                items.forEach(item => {
+                    const titleKey = item.title.trim().toUpperCase();
+                    const amt = Number(item.amount) || 0;
+                    total += amt;
+                    if (!map[titleKey]) {
+                        map[titleKey] = { totalAmount: 0, count: 0, rawTitle: item.title.trim() };
+                    }
+                    map[titleKey].totalAmount += amt;
+                    map[titleKey].count += 1;
+                });
+                return { map, total };
+            };
 
-            data.forEach(item => {
-                const titleKey = item.title.trim().toUpperCase();
-                const amt = Number(item.amount) || 0;
-                grandTotal += amt;
+            const dailyGroup = processGroup(dailyData);
+            const homeGroup = processGroup(homeData);
+            const grandTotal = dailyGroup.total + homeGroup.total;
 
-                if (!groupedMap[titleKey]) {
-                    groupedMap[titleKey] = { totalAmount: 0, count: 0, rawTitle: item.title.trim() };
-                }
-                groupedMap[titleKey].totalAmount += amt;
-                groupedMap[titleKey].count += 1;
-            });
-
-            // Sabse bada expense amount nikala
-            Object.values(groupedMap).forEach(item => {
-                if (item.totalAmount > maxExpenseAmount) {
-                    maxExpenseAmount = item.totalAmount;
-                }
+            let maxExpenseAmount = 0;
+            [...Object.values(dailyGroup.map), ...Object.values(homeGroup.map)].forEach(item => {
+                if (item.totalAmount > maxExpenseAmount) maxExpenseAmount = item.totalAmount;
             });
 
             // BRAND HEADER
@@ -321,8 +329,7 @@ if (downloadPdfBtn) {
 
             doc.setFontSize(8);
             doc.setTextColor(100, 116, 139);
-            const reportSubTitle = reportType === 'specific' ? "SPECIFIC DATE EXPENSE STATEMENT" : "FINANCIAL STATEMENT & LEDGER REPORT";
-            doc.text(reportSubTitle, 14, 27);
+            doc.text("FINANCIAL STATEMENT & LEDGER REPORT", 14, 27);
 
             // META CARD
             doc.setFillColor(248, 250, 252);
@@ -350,118 +357,138 @@ if (downloadPdfBtn) {
             doc.roundedRect(14, 38, 56, 20, rx, rx, 'FD');
             doc.setFontSize(7);
             doc.setTextColor(100, 116, 139);
-            doc.text("TOTAL TRANSACTIONS", 18, 44);
-            doc.setFontSize(12);
+            doc.text("DAILY HOUSEHOLD TOTAL", 18, 44);
+            doc.setFontSize(11);
             doc.setTextColor(15, 23, 42);
-            doc.text(`${data.length} Records`, 18, 52);
+            doc.text(`₹${dailyGroup.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 18, 52);
 
             doc.setFillColor(248, 250, 252);
             doc.roundedRect(76, 38, 56, 20, rx, rx, 'FD');
             doc.setFontSize(7);
-            doc.setTextColor(100, 116, 139);
-            doc.text("CATEGORIES ENGAGED", 80, 44);
-            doc.setFontSize(12);
-            doc.setTextColor(15, 23, 42);
-            doc.text(`${Object.keys(groupedMap).length} Items`, 80, 52);
+            doc.setTextColor(99, 102, 241);
+            doc.text("HOUSE CONST. TOTAL", 80, 44);
+            doc.setFontSize(11);
+            doc.setTextColor(67, 56, 202);
+            doc.text(`₹${homeGroup.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 80, 52);
 
-            // TOTAL NET EXPENSE KPI CARD (RED THEME)
             doc.setFillColor(254, 242, 242);
             doc.setDrawColor(254, 202, 202);
             doc.roundedRect(138, 38, 58, 20, rx, rx, 'FD');
             doc.setFontSize(7);
             doc.setTextColor(153, 27, 27);
-            doc.text("TOTAL NET EXPENSE", 142, 44);
-            doc.setFontSize(12);
+            doc.text("TOTAL COMBINED NET", 142, 44);
+            doc.setFontSize(11);
             doc.setTextColor(185, 28, 28);
             doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 142, 52);
 
-            // TABLE
-            doc.setFontSize(10);
-            doc.setTextColor(15, 23, 42);
-            doc.text("ITEMIZED BREAKDOWN", 14, 67);
+            let currentY = 67;
 
-            const tableRows = Object.keys(groupedMap).map((title, idx) => {
-                const totalAmt = groupedMap[title].totalAmount;
-                const count = groupedMap[title].count;
-                const tag = getCategoryTag(groupedMap[title].rawTitle);
+            // SECTION 1: DAILY HOUSEHOLD EXPENSES TABLE
+            if (Object.keys(dailyGroup.map).length > 0) {
+                doc.setFontSize(10);
+                doc.setTextColor(15, 23, 42);
+                doc.text("DAILY HOUSEHOLD EXPENSES", 14, currentY);
 
-                return [
-                    `${idx + 1}`,
-                    `${tag}${title}`,
-                    `${count} ${count > 1 ? 'Entries' : 'Entry'}`,
-                    `₹${totalAmt.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
-                ];
-            });
+                const dailyRows = Object.keys(dailyGroup.map).map((key, idx) => {
+                    const item = dailyGroup.map[key];
+                    return [
+                        `${idx + 1}`,
+                        item.rawTitle,
+                        `${item.count} ${item.count > 1 ? 'Entries' : 'Entry'}`,
+                        `₹${item.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                    ];
+                });
 
-            doc.autoTable({
-                startY: 71,
-                head: [['NO.', 'EXPENSE CATEGORY & DESCRIPTION', 'FREQUENCY', 'AMOUNT (INR)']],
-                body: tableRows,
-                theme: 'grid',
-                headStyles: { 
-                    fillColor: [15, 23, 42], 
-                    textColor: [255, 255, 255],
-                    fontStyle: 'bold',
-                    font: activeFont,
-                    fontSize: 8,
-                    cellPadding: 4,
-                    lineColor: [15, 23, 42]
-                },
-                bodyStyles: { 
-                    font: activeFont,
-                    fontStyle: 'bold',
-                    fontSize: 8.5, 
-                    textColor: [30, 41, 59],
-                    cellPadding: 3.5,
-                    lineColor: [241, 245, 249]
-                },
-                alternateRowStyles: { fillColor: [248, 250, 252] },
-                columnStyles: {
-                    0: { cellWidth: 14, halign: 'center', textColor: [100, 116, 139] },
-                    1: { cellWidth: 104 },
-                    2: { cellWidth: 30, halign: 'center' },
-                    3: { cellWidth: 34, halign: 'right' }
-                },
-                didParseCell: function(dataCell) {
-                    // Check kar rahe hain ki kya cell 4th column (Amount) ka hai
-                    if (dataCell.section === 'body' && dataCell.column.index === 3) {
-                        const rawText = dataCell.cell.raw.replace(/[^0-9.]/g, '');
-                        const cellAmount = parseFloat(rawText);
-
-                        // Agar ye amount maximum expense ke barabar hai toh isko Red kar do
-                        if (cellAmount === maxExpenseAmount && maxExpenseAmount > 0) {
-                            dataCell.cell.styles.textColor = [185, 28, 28]; // Bright Red
-                            dataCell.cell.styles.fontStyle = 'bold';
-                        } else {
-                            dataCell.cell.styles.textColor = [71, 85, 105]; // Slate Neutral Color
+                doc.autoTable({
+                    startY: currentY + 3,
+                    head: [['NO.', 'ITEMS & DESCRIPTION', 'FREQUENCY', 'AMOUNT (INR)']],
+                    body: dailyRows,
+                    theme: 'grid',
+                    headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold', font: activeFont, fontSize: 8 },
+                    bodyStyles: { font: activeFont, fontStyle: 'bold', fontSize: 8.5, textColor: [30, 41, 59] },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    columnStyles: {
+                        0: { cellWidth: 14, halign: 'center' },
+                        1: { cellWidth: 104 },
+                        2: { cellWidth: 30, halign: 'center' },
+                        3: { cellWidth: 34, halign: 'right' }
+                    },
+                    didParseCell: function(dataCell) {
+                        if (dataCell.section === 'body' && dataCell.column.index === 3) {
+                            const rawText = dataCell.cell.raw.replace(/[^0-9.]/g, '');
+                            if (parseFloat(rawText) === maxExpenseAmount && maxExpenseAmount > 0) {
+                                dataCell.cell.styles.textColor = [185, 28, 28];
+                            }
                         }
-                    }
-                },
-                margin: { left: 14, right: 14 }
-            });
+                    },
+                    margin: { left: 14, right: 14 }
+                });
 
-            // SUMMARY
-            const finalY = doc.lastAutoTable.finalY + 6;
+                currentY = doc.lastAutoTable.finalY + 10;
+            }
+
+            // SECTION 2: HOUSE CONSTRUCTION EXPENSES TABLE
+            if (Object.keys(homeGroup.map).length > 0) {
+                doc.setFontSize(10);
+                doc.setTextColor(67, 56, 202);
+                doc.text("HOUSE CONSTRUCTION EXPENSES", 14, currentY);
+
+                const homeRows = Object.keys(homeGroup.map).map((key, idx) => {
+                    const item = homeGroup.map[key];
+                    return [
+                        `${idx + 1}`,
+                        item.rawTitle,
+                        `${item.count} ${item.count > 1 ? 'Entries' : 'Entry'}`,
+                        `₹${item.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                    ];
+                });
+
+                doc.autoTable({
+                    startY: currentY + 3,
+                    head: [['NO.', 'CONSTRUCTION MATERIAL / WORK', 'FREQUENCY', 'AMOUNT (INR)']],
+                    body: homeRows,
+                    theme: 'grid',
+                    headStyles: { fillColor: [67, 56, 202], textColor: [255, 255, 255], fontStyle: 'bold', font: activeFont, fontSize: 8 },
+                    bodyStyles: { font: activeFont, fontStyle: 'bold', fontSize: 8.5, textColor: [255, 255, 255] },
+                    bodyStyles: { font: activeFont, fontStyle: 'bold', fontSize: 8.5, textColor: [30, 41, 59] },
+                    alternateRowStyles: { fillColor: [243, 244, 246] },
+                    columnStyles: {
+                        0: { cellWidth: 14, halign: 'center' },
+                        1: { cellWidth: 104 },
+                        2: { cellWidth: 30, halign: 'center' },
+                        3: { cellWidth: 34, halign: 'right' }
+                    },
+                    didParseCell: function(dataCell) {
+                        if (dataCell.section === 'body' && dataCell.column.index === 3) {
+                            const rawText = dataCell.cell.raw.replace(/[^0-9.]/g, '');
+                            if (parseFloat(rawText) === maxExpenseAmount && maxExpenseAmount > 0) {
+                                dataCell.cell.styles.textColor = [185, 28, 28];
+                            }
+                        }
+                    },
+                    margin: { left: 14, right: 14 }
+                });
+
+                currentY = doc.lastAutoTable.finalY + 10;
+            }
+
+            // GRAND TOTAL SUMMARY BAR
             doc.setFillColor(248, 250, 252);
             doc.setDrawColor(226, 232, 240);
-            doc.roundedRect(14, finalY, 182, 12, 2, 2, 'FD');
-            
+            doc.roundedRect(14, currentY, 182, 12, 2, 2, 'FD');
             doc.setFontSize(8.5);
             doc.setTextColor(15, 23, 42);
-            doc.text("GRAND TOTAL SPENT", 20, finalY + 7.5);
-            
+            doc.text("GRAND TOTAL SPENT", 20, currentY + 7.5);
             doc.setFontSize(10);
             doc.setTextColor(185, 28, 28);
-            doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 188, finalY + 7.5, { align: 'right' });
+            doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 188, currentY + 7.5, { align: 'right' });
 
             // FOOTER
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
-                
                 doc.setDrawColor(226, 232, 240);
                 doc.line(14, 276, 196, 276);
-
                 doc.setFontSize(7.5);
                 doc.setFont(activeFont, "bold");
                 doc.setTextColor(148, 163, 184);
