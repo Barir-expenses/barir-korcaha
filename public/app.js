@@ -1,310 +1,617 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>BARIR KORCHA</title>
-    
-    <!-- Premium Google Font (Poppins) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+// Credentials
+const SUPABASE_URL = "https://gmsapmodgwhmsgmgdzfm.supabase.co"; 
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdtc2FwbW9kZ3dobXNnbWdkemZtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkwNTEyMzAsImV4cCI6MjEwNDYyNzIzMH0.XJm5a28xV-wF9_y7F4q8JiS73Ui8rFIczUDb63WJ1RM";
 
-    <style>
-        :root {
-            --primary: #10b981;
-            --primary-hover: #059669;
-            --bg: #f1f5f9;
-            --text: #0f172a;
-            --text-muted: #64748b;
-            --border: #cbd5e1;
-            --radius: 18px;
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+let editingExpenseId = null;
+let allCategorySuggestions = [];
+
+// Helper function: Simple Expense ID formatting (EXP-1, EXP-2 format without leading zeros)
+function formatExpId(rawId, defaultIndex) {
+    if (!rawId) return `EXP-${defaultIndex}`;
+    
+    // Convert string number or EXP-001 to simple integer string
+    const cleanNum = rawId.toString().replace(/[^0-9]/g, '');
+    if (cleanNum) {
+        return `EXP-${parseInt(cleanNum, 10)}`;
+    }
+    return `EXP-${defaultIndex}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const expenseDateInput = document.getElementById('expense_date');
+    if (expenseDateInput) expenseDateInput.valueAsDate = new Date();
+    
+    const yearInput = document.getElementById('pdfYear');
+    if (yearInput) yearInput.value = new Date().getFullYear();
+
+    const monthSelect = document.getElementById('pdfMonth');
+    if (monthSelect) monthSelect.value = new Date().getMonth() + 1;
+
+    const specificDateInput = document.getElementById('pdfSpecificDate');
+    if (specificDateInput) specificDateInput.valueAsDate = new Date();
+
+    loadExpenses();
+    loadExpenseSuggestions();
+
+    const drawer = document.getElementById('drawerMenu');
+    const menuToggle = document.getElementById('menuToggle');
+    const closeDrawer = document.getElementById('closeDrawer');
+
+    if (menuToggle && drawer) {
+        menuToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            drawer.classList.add('active');
+        });
+    }
+
+    if (closeDrawer && drawer) {
+        closeDrawer.addEventListener('click', (e) => {
+            e.stopPropagation();
+            drawer.classList.remove('active');
+        });
+    }
+
+    const reportTypeSelect = document.getElementById('reportType');
+    if (reportTypeSelect) {
+        reportTypeSelect.addEventListener('change', handleReportTypeToggle);
+        handleReportTypeToggle();
+    }
+
+    const categorySelect = document.getElementById('category');
+    if (categorySelect) {
+        categorySelect.addEventListener('change', () => {
+            loadExpenses();
+            loadExpenseSuggestions();
+        });
+    }
+
+    // CUSTOM DROPDOWN INTERACTION LISTENERS
+    const titleInput = document.getElementById('title');
+    const dropdown = document.getElementById('customDropdown');
+
+    if (titleInput && dropdown) {
+        titleInput.addEventListener('focus', () => {
+            if (allCategorySuggestions.length > 0) {
+                renderCustomDropdown(allCategorySuggestions);
+                dropdown.style.display = 'block';
+            }
+        });
+
+        titleInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            const filtered = allCategorySuggestions.filter(item => 
+                item.title.toLowerCase().includes(query) || 
+                item.expId.toLowerCase().includes(query)
+            );
+            renderCustomDropdown(filtered);
+            dropdown.style.display = filtered.length > 0 ? 'block' : 'none';
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!titleInput.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.style.display = 'none';
+            }
+        });
+    }
+});
+
+function handleReportTypeToggle() {
+    const reportTypeSelect = document.getElementById('reportType');
+    const monthlyGroup = document.getElementById('monthlyGroup');
+    const yearlyGroup = document.getElementById('yearlyGroup');
+    const specificDateGroup = document.getElementById('specificDateGroup');
+
+    if (!reportTypeSelect) return;
+
+    const val = reportTypeSelect.value;
+
+    if (monthlyGroup) monthlyGroup.style.display = (val === 'monthly') ? 'block' : 'none';
+    if (yearlyGroup) yearlyGroup.style.display = (val === 'monthly' || val === 'yearly') ? 'block' : 'none';
+    if (specificDateGroup) specificDateGroup.style.display = (val === 'specific') ? 'block' : 'none';
+}
+
+function getTableName() {
+    const categorySelect = document.getElementById('category');
+    const selectedCategory = categorySelect ? categorySelect.value : 'GENERAL';
+    return (selectedCategory === 'HOME') ? 'home_expenses' : 'expenses';
+}
+
+// RECENT EXPENSES LIST (TOP 10 ENTRIES)
+async function loadExpenses() {
+    try {
+        const tableName = getTableName();
+        
+        const [resMaster, resExpenses] = await Promise.all([
+            supabaseClient.from('expense_master_summary').select('title, expense_id'),
+            supabaseClient.from(tableName).select('*').order('expense_date', { ascending: false }).limit(10)
+        ]);
+        
+        if (resExpenses.error) throw resExpenses.error;
+        
+        const masterMap = {};
+        if (resMaster.data) {
+            resMaster.data.forEach((m, idx) => {
+                masterMap[m.title.trim().toUpperCase()] = formatExpId(m.expense_id, idx + 1);
+            });
+        }
+        
+        const tbody = document.getElementById('expenseList');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        
+        const data = resExpenses.data || [];
+        
+        if (data.length > 0) {
+            data.forEach((item, idx) => {
+                const titleKey = item.title.trim().toUpperCase();
+                const expId = masterMap[titleKey] || `EXP-${idx + 1}`;
+                const categoryBadge = tableName === 'home_expenses' ? '🏠 House' : '🛒 Daily';
+                
+                tbody.innerHTML += `
+                    <tr>
+                        <td style="white-space: nowrap;">${item.expense_date}</td>
+                        <td>
+                            <strong style="color: #6366f1; font-size: 0.82rem;">[${expId}]</strong>
+                        </td>
+                        <td>
+                            <span style="font-weight: 600; font-size: 0.92rem; color: #0f172a;">${item.title}</span><br>
+                            <small style="color:#64748b; font-weight:700; font-size: 0.72rem;">${categoryBadge}</small>
+                        </td>
+                        <td class="amount-td">₹${Number(item.amount).toFixed(2)}</td>
+                    </tr>
+                `;
+            });
+        } else {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align:center;">No records found.</td></tr>`;
+        }
+    } catch (err) {
+        console.error("Fetch Error:", err);
+    }
+}
+// DROPDOWN DATA FETCHING & RENDERER (USING SIMPLE EXP-1, EXP-2)
+async function loadExpenseSuggestions() {
+    try {
+        const tableName = getTableName();
+
+        const [resMaster, resExpenses] = await Promise.all([
+            supabaseClient.from('expense_master_summary').select('title, expense_id'),
+            supabaseClient.from(tableName).select('title, amount')
+        ]);
+
+        if (resExpenses.error) throw resExpenses.error;
+
+        const masterMap = {};
+        if (resMaster.data) {
+            resMaster.data.forEach((m, idx) => {
+                masterMap[m.title.trim().toUpperCase()] = formatExpId(m.expense_id, idx + 1);
+            });
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Poppins', sans-serif; }
-        body { background-color: var(--bg); color: var(--text); padding-bottom: 50px; overflow-x: hidden; }
+        allCategorySuggestions = [];
+        if (resExpenses.data && resExpenses.data.length > 0) {
+            const categoryTotals = {};
 
-        /* Modern Navbar */
-        .navbar {
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(12px);
-            border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-            padding: 0.8rem 1.5rem;
+            resExpenses.data.forEach(item => {
+                const title = item.title.trim();
+                const amount = Number(item.amount) || 0;
+                categoryTotals[title] = (categoryTotals[title] || 0) + amount;
+            });
+
+            Object.keys(categoryTotals).forEach((title, idx) => {
+                const titleKey = title.toUpperCase();
+                const expId = masterMap[titleKey] || `EXP-${idx + 1}`;
+                allCategorySuggestions.push({
+                    title: title,
+                    expId: expId,
+                    totalSpent: categoryTotals[title]
+                });
+            });
+        }
+        renderCustomDropdown(allCategorySuggestions);
+    } catch (err) {
+        console.error("Suggestions Fetch Error:", err);
+    }
+}
+
+function renderCustomDropdown(items) {
+    const dropdown = document.getElementById('customDropdown');
+    if (!dropdown) return;
+
+    if (items.length === 0) {
+        dropdown.style.display = 'none';
+        return;
+    }
+
+    dropdown.innerHTML = '';
+    items.forEach(item => {
+        const formattedTotal = item.totalSpent.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+        const row = document.createElement('div');
+        row.className = 'dropdown-item-row';
+        row.style.cssText = `
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #334155;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            position: sticky;
-            top: 0;
-            z-index: 10;
-        }
-        
-        /* Title with PNG Logo */
-        .brand { 
-            font-weight: 800; 
-            font-size: 1.45rem; 
-            color: #3730a3; 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-            letter-spacing: -0.3px; 
-        }
+            background-color: #1e293b;
+        `;
 
-        .brand-logo { 
-            width: 36px; 
-            height: 36px; 
-            object-fit: contain; 
-        }
-
-        /* 3-Line Menu Trigger */
-        .menu-btn {
-            background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text); padding: 6px 10px; border-radius: 8px;
-            transition: background 0.2s;
-        }
-        .menu-btn:hover { background: #e2e8f0; }
-
-        /* Slide Drawer */
-        .drawer {
-            position: fixed; top: 0; right: -340px; width: 320px; height: 100%; background: #ffffff;
-            box-shadow: -10px 0 30px rgba(0,0,0,0.08); transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1); z-index: 100; padding: 24px;
-        }
-        .drawer.active { right: 0; }
-        .drawer-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
-        .close-btn { background: none; border: none; font-size: 1.4rem; cursor: pointer; color: var(--text-muted); }
-
-        /* Floating Animation */
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-8px); }
-            100% { transform: translateY(0px); }
-        }
-
-        /* Main Container */
-        .container { max-width: 680px; margin: 2.2rem auto; padding: 0 1.2rem; }
-
-        /* Card Layout */
-        .card { 
-            border-radius: var(--radius); padding: 1.8rem; margin-bottom: 2rem; 
-            box-shadow: 0 12px 28px -5px rgba(0, 0, 0, 0.05); border: 1px solid rgba(255, 255, 255, 0.8);
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        .card:hover { box-shadow: 0 20px 32px -10px rgba(0, 0, 0, 0.09); }
-
-        .card-add { background: linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%); animation: float 6s ease-in-out infinite; }
-        .card-history { background: linear-gradient(135deg, #fefce8 0%, #fef2f2 100%); animation: float 7s ease-in-out infinite 0.5s; }
-
-        .card-title { font-size: 1.15rem; font-weight: 700; margin-bottom: 1.2rem; color: #1e293b; }
-
-        /* Form Controls */
-        .form-group { margin-bottom: 1.1rem; }
-        label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 0.45rem; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        input, select {
-            width: 100%; padding: 0.85rem 1rem; border: 1.5px solid var(--border);
-            border-radius: 12px; font-size: 0.95rem; background-color: #ffffff !important; color: #000000 !important;
-            outline: none; transition: all 0.2s ease-in-out; font-weight: 500;
-        }
-
-        /* Chrome/Safari Autofill & Select Option styling */
-        input:-webkit-autofill,
-        input:-webkit-autofill:hover, 
-        input:-webkit-autofill:focus,
-        input:-webkit-autofill:active {
-            -webkit-text-fill-color: #000000 !important;
-            -webkit-box-shadow: 0 0 0px 1000px #ffffff inset !important;
-            transition: background-color 5000s ease-in-out 0s;
-        }
-
-        option, select {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-        }
-
-        #title, #category {
-            background-color: #ffffff !important;
-            color: #000000 !important;
-        }
-
-        /* RED TEXT FOR AMOUNT INPUT */
-        input[type="number"]#amount {
-            color: #dc2626 !important;
-            font-weight: 700 !important;
-            font-size: 1.05rem;
-        }
-
-        /* Mobile Native Date Picker Styling */
-        input[type="date"] {
-            -webkit-appearance: none;
-            -moz-appearance: none;
-            appearance: none;
-            position: relative;
-            cursor: pointer;
-            background-color: #ffffff !important;
-            color: #000000 !important;
-        }
-
-        .date-wrapper { position: relative; display: flex; align-items: center; }
-        .date-wrapper::after { content: '📅'; position: absolute; right: 15px; pointer-events: none; font-size: 1.1rem; }
-
-        input:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); background-color: #ffffff !important; }
-
-        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-
-        /* GREEN ACCENT SAVE BUTTON */
-        .btn {
-            width: 100%; padding: 0.9rem; border: none; border-radius: 12px;
-            font-weight: 600; font-size: 0.95rem; cursor: pointer; 
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white;
-            transition: all 0.2s ease-in-out; box-shadow: 0 4px 14px rgba(16, 185, 129, 0.3);
-        }
-        .btn:hover { 
-            background: linear-gradient(135deg, #059669 0%, #047857 100%); 
-            transform: translateY(-1px); 
-            box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
-        }
-
-        /* Tables */
-        table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
-        th, td { padding: 0.85rem 0.5rem; text-align: left; border-bottom: 1px solid rgba(0, 0, 0, 0.06); font-size: 0.92rem; }
-        th { color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.6px; }
-        
-        .amount-td { color: #dc2626; font-weight: 700; text-align: right; }
-
-        /* Scrollbar for Dropdown */
-        #customDropdown::-webkit-scrollbar {
-            width: 6px;
-        }
-        #customDropdown::-webkit-scrollbar-thumb {
-            background-color: #475569;
-            border-radius: 4px;
-        }
-    </style>
-
-    <!-- External Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
-</head>
-<body>
-
-    <!-- NAVBAR WITH PNG LOGO -->
-    <nav class="navbar">
-        <div class="brand">
-            <img src="https://raw.githubusercontent.com/Barir-expenses/barir-korcaha/main/public/Gemini_Generated_Image_r0u4m1r0u4m1r0u4.png" alt="barir korcha logo" class="brand-logo">
-            <span>BARIR KORCHA</span>
-        </div>
-        <button class="menu-btn" id="menuToggle">☰</button>
-    </nav>
-
-    <!-- DRAWER MENU -->
-    <div class="drawer" id="drawerMenu">
-        <div class="drawer-header">
-            <h3>Download Statement</h3>
-            <button class="close-btn" id="closeDrawer">✕</button>
-        </div>
-        
-        <!-- Report Type Select -->
-        <div class="form-group">
-            <label>Report Type</label>
-            <select id="reportType">
-                <option value="monthly">Monthly Report</option>
-                <option value="yearly">Yearly Report</option>
-                <option value="specific">Specific Date</option>
-            </select>
-        </div>
-
-        <!-- Specific Date Group -->
-        <div class="form-group" id="specificDateGroup" style="display: none;">
-            <label>Select Date</label>
-            <div class="date-wrapper">
-                <input type="date" id="pdfSpecificDate" onfocus="this.showPicker && this.showPicker()">
+        row.innerHTML = `
+            <div>
+                <span style="color: #ef4444; font-weight: 800; font-size: 0.85rem; background: rgba(239, 68, 68, 0.15); padding: 2px 6px; border-radius: 6px; margin-right: 8px;">[${item.expId}]</span>
+                <span style="color: #ffffff; font-weight: 600; font-size: 0.95rem;">${item.title}</span>
             </div>
-        </div>
+            <div style="color: #94a3b8; font-size: 0.8rem; font-weight: 600;">₹${formattedTotal}</div>
+        `;
 
-        <!-- Month Dropdown -->
-        <div class="form-group" id="monthlyGroup">
-            <label>Select Month</label>
-            <select id="pdfMonth">
-                <option value="1">January</option>
-                <option value="2">February</option>
-                <option value="3">March</option>
-                <option value="4">April</option>
-                <option value="5">May</option>
-                <option value="6">June</option>
-                <option value="7">July</option>
-                <option value="8">August</option>
-                <option value="9">September</option>
-                <option value="10">October</option>
-                <option value="11">November</option>
-                <option value="12">December</option>
-            </select>
-        </div>
+        row.addEventListener('click', () => {
+            const titleInput = document.getElementById('title');
+            if (titleInput) {
+                titleInput.value = item.title;
+            }
+            dropdown.style.display = 'none';
+        });
 
-        <!-- Dynamic Year Input -->
-        <div class="form-group" id="yearlyGroup">
-            <label>Enter Year</label>
-            <input type="number" id="pdfYear" placeholder="e.g. 2026 or 3000" min="1000" max="9999">
-        </div>
+        dropdown.appendChild(row);
+    });
+}
 
-        <button id="downloadPdfBtn" class="btn">📄 Get PDF Report</button>
-    </div>
+// FORM SUBMISSION
+const expenseForm = document.getElementById('expenseForm');
+if (expenseForm) {
+    expenseForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const amount = document.getElementById('amount').value;
+        const rawTitle = document.getElementById('title').value.trim();
+        const expense_date = document.getElementById('expense_date').value;
+        const tableName = getTableName();
 
-    <!-- MAIN CONTAINER -->
-    <div class="container">
-        <!-- Add Expense Card -->
-        <div class="card card-add">
-            <div class="card-title">➕ Add New Expense</div>
-            <form id="expenseForm">
+        if (!amount || !rawTitle || !expense_date) {
+            alert("Kripya saare fields bharein.");
+            return;
+        }
+
+        try {
+            if (editingExpenseId) {
+                const { error } = await supabaseClient
+                    .from(tableName)
+                    .update({ amount: parseFloat(amount), title: rawTitle, expense_date })
+                    .eq('id', editingExpenseId);
+
+                if (error) throw error;
+                editingExpenseId = null;
+
+                const submitBtn = document.querySelector('#expenseForm button[type="submit"]');
+                if (submitBtn) submitBtn.textContent = 'Save Expense';
+            } else {
+                const { error } = await supabaseClient
+                    .from(tableName)
+                    .insert([{ amount: parseFloat(amount), title: rawTitle, expense_date }]);
+
+                if (error) throw error;
+            }
+
+            document.getElementById('amount').value = '';
+            document.getElementById('title').value = '';
+            
+            loadExpenses();
+            loadExpenseSuggestions();
+        } catch (err) {
+            alert(`Error: ${err.message}`);
+        }
+    });
+}
+
+async function loadFontAsBase64(url) {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+        reader.readAsDataURL(blob);
+    });
+}
+
+// PDF GENERATOR
+const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+if (downloadPdfBtn) {
+    downloadPdfBtn.addEventListener('click', async () => {
+        const reportTypeSelect = document.getElementById('reportType');
+        const monthSelect = document.getElementById('pdfMonth');
+        const yearInput = document.getElementById('pdfYear');
+        const specificDateInput = document.getElementById('pdfSpecificDate');
+
+        const reportType = reportTypeSelect ? reportTypeSelect.value : 'monthly';
+        const month = monthSelect ? monthSelect.value : '';
+        const year = yearInput ? yearInput.value : '';
+        const targetDate = specificDateInput ? specificDateInput.value : '';
+
+        try {
+            let qDaily = supabaseClient.from('expenses').select('*');
+            let qHome = supabaseClient.from('home_expenses').select('*');
+            let qMaster = supabaseClient.from('expense_master_summary').select('*');
+            let periodText = '';
+            let fileName = '';
+
+            if (reportType === 'specific') {
+                if (!targetDate) { alert('Kripya specific date select karein.'); return; }
+                qDaily = qDaily.eq('expense_date', targetDate);
+                qHome = qHome.eq('expense_date', targetDate);
                 
-                <!-- Category Select Dropdown -->
-                <div class="form-group">
-                    <label>Expense Category</label>
-                    <select id="category">
-                        <option value="GENERAL" selected>🛒 Daily Household / General</option>
-                        <option value="HOME">🏠 Home Construction (Ghar Banwana)</option>
-                    </select>
-                </div>
+                const dObj = new Date(targetDate);
+                periodText = dObj.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+                fileName = `BARIR_KORCHA_DATE_${targetDate}.pdf`;
+            } else if (reportType === 'monthly') {
+                if (!year || !month) { alert('Kripya Month aur Year select karein.'); return; }
+                const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
+                const lastDay = new Date(year, month, 0).getDate();
+                const endDate = `${year}-${String(month).padStart(2, '0')}-${lastDay}`;
+                
+                qDaily = qDaily.gte('expense_date', startDate).lte('expense_date', endDate);
+                qHome = qHome.gte('expense_date', startDate).lte('expense_date', endDate);
 
-                <!-- Custom Interactive Dropdown Wrapper -->
-                <div class="form-group" style="position: relative;">
-                    <label>Expense Name / Details</label>
-                    <input type="text" id="title" placeholder="Select or search item..." required autocomplete="off">
-                    
-                    <!-- Custom Dropdown Menu -->
-                    <div id="customDropdown" style="position: absolute; top: 100%; left: 0; right: 0; background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; max-height: 220px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.3); margin-top: 4px;"></div>
-                </div>
+                const monthNames = ["", "JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+                periodText = `${monthNames[month]} ${year}`;
+                fileName = `BARIR_KORCHA_${monthNames[month]}_${year}.pdf`;
+            } else {
+                if (!year) { alert('Kripya Year enter karein (e.g. 2026).'); return; }
+                qDaily = qDaily.gte('expense_date', `${year}-01-01`).lte('expense_date', `${year}-12-31`);
+                qHome = qHome.gte('expense_date', `${year}-01-01`).lte('expense_date', `${year}-12-31`);
+                periodText = `YEAR ${year}`;
+                fileName = `BARIR_KORCHA_${year}.pdf`;
+            }
 
-                <div class="grid-2">
-                    <div class="form-group">
-                        <label>Amount (₹)</label>
-                        <input type="number" id="amount" step="0.01" placeholder="0.00" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Date</label>
-                        <div class="date-wrapper">
-                            <input type="date" id="expense_date" required onfocus="this.showPicker && this.showPicker()">
-                        </div>
-                    </div>
-                </div>
-                <button type="submit" class="btn">Save Expense</button>
-            </form>
-        </div>
+            const [resDaily, resHome, resMaster] = await Promise.all([qDaily, qHome, qMaster]);
 
-        <!-- Recent Expense History Card (10 Entries Only) -->
-<div class="card card-history">
-    <div class="card-title">📋 Recent Expenses History</div>
-    <table>
-        <thead>
-            <tr>
-                <th>Date</th>
-                <th>EXP ID</th>
-                <th>Title</th>
-                <th style="text-align: right;">Amount</th>
-            </tr>
-        </thead>
-        <tbody id="expenseList"></tbody>
-    </table>
-</div>
+            if (resDaily.error) throw resDaily.error;
+            if (resHome.error) throw resHome.error;
 
-    <script src="app.js"></script>
-</body>
-</html>
+            const dailyData = resDaily.data || [];
+            const homeData = resHome.data || [];
+            const masterMap = {};
+
+            if (resMaster.data) {
+                resMaster.data.forEach((m, idx) => {
+                    masterMap[m.title.trim().toUpperCase()] = formatExpId(m.expense_id, idx + 1);
+                });
+            }
+
+            if (dailyData.length === 0 && homeData.length === 0) {
+                alert(`Selected duration ke liye koi records nahi mile.`);
+                return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+            try {
+                const fontBoldBase64 = await loadFontAsBase64("https://cdn.jsdelivr.net/fontsource/fonts/plus-jakarta-sans@latest/latin-700-normal.ttf");
+                doc.addFileToVFS('PlusJakartaSans-Bold.ttf', fontBoldBase64);
+                doc.addFont('PlusJakartaSans-Bold.ttf', 'PlusJakartaSans', 'bold');
+                doc.setFont("PlusJakartaSans", "bold");
+            } catch (fErr) {
+                doc.setFont("helvetica", "bold");
+            }
+
+            const activeFont = doc.getFont().fontName;
+            const generatedDate = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+            const docRef = `BK-${Math.floor(100000 + Math.random() * 900000)}`;
+
+            const processGroup = (items) => {
+                const map = {};
+                let total = 0;
+                items.forEach(item => {
+                    const titleKey = item.title.trim().toUpperCase();
+                    const amt = Number(item.amount) || 0;
+                    total += amt;
+                    if (!map[titleKey]) {
+                        map[titleKey] = { totalAmount: 0, count: 0, rawTitle: item.title.trim() };
+                    }
+                    map[titleKey].totalAmount += amt;
+                    map[titleKey].count += 1;
+                });
+                return { map, total };
+            };
+
+            const dailyGroup = processGroup(dailyData);
+            const homeGroup = processGroup(homeData);
+            const grandTotal = dailyGroup.total + homeGroup.total;
+
+            let maxExpenseAmount = 0;
+            [...Object.values(dailyGroup.map), ...Object.values(homeGroup.map)].forEach(item => {
+                if (item.totalAmount > maxExpenseAmount) maxExpenseAmount = item.totalAmount;
+            });
+
+            // HEADER
+            doc.setFillColor(15, 23, 42); 
+            doc.rect(0, 0, 210, 5, 'F');
+            doc.setFillColor(16, 185, 129); 
+            doc.rect(0, 5, 210, 1.5, 'F');
+
+            doc.setFont(activeFont, "bold");
+            doc.setFontSize(22);
+            doc.setTextColor(15, 23, 42); 
+            doc.text("BARIR KORCHA", 14, 22);
+
+            doc.setFontSize(8);
+            doc.setTextColor(100, 116, 139);
+            doc.text("FINANCIAL STATEMENT & LEDGER REPORT", 14, 27);
+
+            // META CARD
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(226, 232, 240);
+            doc.setLineWidth(0.4);
+            doc.roundedRect(128, 12, 68, 22, 3, 3, 'FD');
+
+            doc.setFontSize(7.5);
+            doc.setTextColor(100, 116, 139);
+            doc.text("STATEMENT DATE", 132, 18);
+            doc.text("GENERATED ON", 132, 23);
+            doc.text("REFERENCE NO", 132, 28);
+
+            doc.setFontSize(8);
+            doc.setTextColor(15, 23, 42);
+            doc.text(periodText, 163, 18);
+            doc.text(generatedDate, 163, 23);
+            doc.text(docRef, 163, 28);
+
+            // KPI CARDS
+            const rx = 3;
+
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(226, 232, 240);
+            doc.roundedRect(14, 38, 56, 20, rx, rx, 'FD');
+            doc.setFontSize(7);
+            doc.setTextColor(100, 116, 139);
+            doc.text("DAILY HOUSEHOLD TOTAL", 18, 44);
+            doc.setFontSize(11);
+            doc.setTextColor(15, 23, 42);
+            doc.text(`₹${dailyGroup.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 18, 52);
+
+            doc.setFillColor(248, 250, 252);
+            doc.roundedRect(76, 38, 56, 20, rx, rx, 'FD');
+            doc.setFontSize(7);
+            doc.setTextColor(99, 102, 241);
+            doc.text("HOUSE CONST. TOTAL", 80, 44);
+            doc.setFontSize(11);
+            doc.setTextColor(67, 56, 202);
+            doc.text(`₹${homeGroup.total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 80, 52);
+
+            doc.setFillColor(254, 242, 242);
+            doc.setDrawColor(254, 202, 202);
+            doc.roundedRect(138, 38, 58, 20, rx, rx, 'FD');
+            doc.setFontSize(7);
+            doc.setTextColor(153, 27, 27);
+            doc.text("TOTAL COMBINED NET", 142, 44);
+            doc.setFontSize(11);
+            doc.setTextColor(185, 28, 28);
+            doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 142, 52);
+
+            let currentY = 67;
+
+            // SECTION 1: DAILY
+            if (Object.keys(dailyGroup.map).length > 0) {
+                doc.setFontSize(10);
+                doc.setTextColor(15, 23, 42);
+                doc.text("DAILY HOUSEHOLD EXPENSES", 14, currentY);
+
+                const dailyRows = Object.keys(dailyGroup.map).map((key, idx) => {
+                    const item = dailyGroup.map[key];
+                    const expId = masterMap[key] || `EXP-${idx + 1}`;
+                    return [
+                        expId,
+                        item.rawTitle,
+                        `${item.count} ${item.count > 1 ? 'Entries' : 'Entry'}`,
+                        `₹${item.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                    ];
+                });
+
+                doc.autoTable({
+                    startY: currentY + 3,
+                    head: [['EXP ID', 'ITEMS & DESCRIPTION', 'FREQUENCY', 'AMOUNT (INR)']],
+                    body: dailyRows,
+                    theme: 'grid',
+                    headStyles: { fillColor: [15, 23, 42], textColor: [255, 255, 255], fontStyle: 'bold', font: activeFont, fontSize: 8 },
+                    bodyStyles: { font: activeFont, fontStyle: 'bold', fontSize: 8.5, textColor: [30, 41, 59] },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    columnStyles: {
+                        0: { cellWidth: 20, halign: 'center', textColor: [100, 116, 139] },
+                        1: { cellWidth: 98 },
+                        2: { cellWidth: 30, halign: 'center' },
+                        3: { cellWidth: 34, halign: 'right' }
+                    },
+                    didParseCell: function(dataCell) {
+                        if (dataCell.section === 'body' && dataCell.column.index === 3) {
+                            const rawText = dataCell.cell.raw.replace(/[^0-9.]/g, '');
+                            if (parseFloat(rawText) === maxExpenseAmount && maxExpenseAmount > 0) {
+                                dataCell.cell.styles.textColor = [185, 28, 28];
+                            }
+                        }
+                    },
+                    margin: { left: 14, right: 14 }
+                });
+
+                currentY = doc.lastAutoTable.finalY + 10;
+            }
+
+            // SECTION 2: HOUSE CONSTRUCTION
+            if (Object.keys(homeGroup.map).length > 0) {
+                doc.setFontSize(10);
+                doc.setTextColor(67, 56, 202);
+                doc.text("HOUSE CONSTRUCTION EXPENSES", 14, currentY);
+
+                const homeRows = Object.keys(homeGroup.map).map((key, idx) => {
+                    const item = homeGroup.map[key];
+                    const expId = masterMap[key] || `EXP-${idx + 1}`;
+                    return [
+                        expId,
+                        item.rawTitle,
+                        `${item.count} ${item.count > 1 ? 'Entries' : 'Entry'}`,
+                        `₹${item.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`
+                    ];
+                });
+
+                doc.autoTable({
+                    startY: currentY + 3,
+                    head: [['EXP ID', 'CONSTRUCTION MATERIAL / WORK', 'FREQUENCY', 'AMOUNT (INR)']],
+                    body: homeRows,
+                    theme: 'grid',
+                    headStyles: { fillColor: [67, 56, 202], textColor: [255, 255, 255], fontStyle: 'bold', font: activeFont, fontSize: 8 },
+                    bodyStyles: { font: activeFont, fontStyle: 'bold', fontSize: 8.5, textColor: [30, 41, 59] },
+                    alternateRowStyles: { fillColor: [243, 244, 246] },
+                    columnStyles: {
+                        0: { cellWidth: 20, halign: 'center', textColor: [99, 102, 241] },
+                        1: { cellWidth: 98 },
+                        2: { cellWidth: 30, halign: 'center' },
+                        3: { cellWidth: 34, halign: 'right' }
+                    },
+                    didParseCell: function(dataCell) {
+                        if (dataCell.section === 'body' && dataCell.column.index === 3) {
+                            const rawText = dataCell.cell.raw.replace(/[^0-9.]/g, '');
+                            if (parseFloat(rawText) === maxExpenseAmount && maxExpenseAmount > 0) {
+                                dataCell.cell.styles.textColor = [185, 28, 28];
+                            }
+                        }
+                    },
+                    margin: { left: 14, right: 14 }
+                });
+
+                currentY = doc.lastAutoTable.finalY + 10;
+            }
+
+            // GRAND TOTAL SUMMARY BAR
+            doc.setFillColor(248, 250, 252);
+            doc.setDrawColor(226, 232, 240);
+            doc.roundedRect(14, currentY, 182, 12, 2, 2, 'FD');
+            doc.setFontSize(8.5);
+            doc.setTextColor(15, 23, 42);
+            doc.text("GRAND TOTAL SPENT", 20, currentY + 7.5);
+            doc.setFontSize(10);
+            doc.setTextColor(185, 28, 28);
+            doc.text(`₹${grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 188, currentY + 7.5, { align: 'right' });
+
+            // FOOTER
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setDrawColor(226, 232, 240);
+                doc.line(14, 276, 196, 276);
+                doc.setFontSize(7.5);
+                doc.setFont(activeFont, "bold");
+                doc.setTextColor(148, 163, 184);
+                doc.text("CONFIDENTIAL  |  GENERATED VIA BARIR KORCHA SYSTEM", 14, 282);
+                doc.text(`PAGE ${i} OF ${pageCount}`, 196, 282, { align: 'right' });
+            }
+
+            doc.save(fileName);
+
+            const drawer = document.getElementById('drawerMenu');
+            if (drawer) drawer.classList.remove('active');
+
+        } catch (err) {
+            alert(`PDF Error: ${err.message}`);
+        }
+    });
