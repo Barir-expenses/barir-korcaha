@@ -104,7 +104,7 @@
             outline: none; transition: all 0.2s ease-in-out; font-weight: 500;
         }
 
-        /* Chrome/Safari Autofill & Datalist Dropdown White Background & Black Text Overrides */
+        /* Chrome/Safari Autofill & Select Option styling */
         input:-webkit-autofill,
         input:-webkit-autofill:hover, 
         input:-webkit-autofill:focus,
@@ -114,13 +114,11 @@
             transition: background-color 5000s ease-in-out 0s;
         }
 
-        /* Force Datalist Popup & Select Option styling */
-        datalist, option, select {
+        option, select {
             background-color: #ffffff !important;
             color: #000000 !important;
         }
 
-        /* Specific input title styles */
         #title, #category {
             background-color: #ffffff !important;
             color: #000000 !important;
@@ -144,30 +142,12 @@
             color: #000000 !important;
         }
 
-        /* Calendar Picker Wrapper */
         .date-wrapper { position: relative; display: flex; align-items: center; }
         .date-wrapper::after { content: '📅'; position: absolute; right: 15px; pointer-events: none; font-size: 1.1rem; }
 
         input:focus, select:focus { border-color: #6366f1; box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.15); background-color: #ffffff !important; }
 
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-
-        /* Category Total Spent Badge */
-        .category-badge {
-            display: none;
-            margin-top: 0.5rem;
-            padding: 0.4rem 0.8rem;
-            background: #ffffff;
-            border: 1px solid #cbd5e1;
-            border-radius: 8px;
-            font-size: 0.82rem;
-            color: #475569;
-            font-weight: 600;
-        }
-        .category-badge span {
-            color: #dc2626;
-            font-weight: 700;
-        }
 
         /* GREEN ACCENT SAVE BUTTON */
         .btn {
@@ -182,12 +162,21 @@
             box-shadow: 0 6px 18px rgba(16, 185, 129, 0.4);
         }
 
-        /* History Table */
+        /* Tables */
         table { width: 100%; border-collapse: collapse; margin-top: 0.5rem; }
         th, td { padding: 0.85rem 0.5rem; text-align: left; border-bottom: 1px solid rgba(0, 0, 0, 0.06); font-size: 0.92rem; }
         th { color: var(--text-muted); font-weight: 700; text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.6px; }
         
-        .amount-td { color: #dc2626; font-weight: 700; }
+        .amount-td { color: #dc2626; font-weight: 700; text-align: right; }
+
+        /* Scrollbar for Dropdown */
+        #customDropdown::-webkit-scrollbar {
+            width: 6px;
+        }
+        #customDropdown::-webkit-scrollbar-thumb {
+            background-color: #475569;
+            border-radius: 4px;
+        }
     </style>
 
     <!-- External Libraries -->
@@ -223,7 +212,7 @@
             </select>
         </div>
 
-        <!-- Specific Date Group (Toggles on Specific Date Selection) -->
+        <!-- Specific Date Group -->
         <div class="form-group" id="specificDateGroup" style="display: none;">
             <label>Select Date</label>
             <div class="date-wrapper">
@@ -231,7 +220,7 @@
             </div>
         </div>
 
-        <!-- Month Dropdown (Toggles on Monthly Selection) -->
+        <!-- Month Dropdown -->
         <div class="form-group" id="monthlyGroup">
             <label>Select Month</label>
             <select id="pdfMonth">
@@ -250,7 +239,7 @@
             </select>
         </div>
 
-        <!-- Dynamic Year Number Input -->
+        <!-- Dynamic Year Input -->
         <div class="form-group" id="yearlyGroup">
             <label>Enter Year</label>
             <input type="number" id="pdfYear" placeholder="e.g. 2026 or 3000" min="1000" max="9999">
@@ -275,16 +264,15 @@
                     </select>
                 </div>
 
-                <div class="form-group">
+                <!-- Custom Interactive Dropdown Wrapper -->
+                <div class="form-group" style="position: relative;">
                     <label>Expense Name / Details</label>
-                    <input type="text" id="title" list="expenseSuggestions" placeholder="Type cement, rod, mistri or item name..." required autocomplete="off">
-                    <datalist id="expenseSuggestions"></datalist>
+                    <input type="text" id="title" placeholder="Select or search item..." required autocomplete="off">
                     
-                    <!-- Total Spend Badge -->
-                    <div id="categorySpendBadge" class="category-badge">
-                        Total spent on this: <span id="categorySpendAmount">₹0.00</span>
-                    </div>
+                    <!-- Custom Dropdown Menu -->
+                    <div id="customDropdown" style="position: absolute; top: 100%; left: 0; right: 0; background-color: #1e293b; border: 1px solid #334155; border-radius: 12px; max-height: 220px; overflow-y: auto; z-index: 1000; display: none; box-shadow: 0 10px 25px rgba(0,0,0,0.3); margin-top: 4px;"></div>
                 </div>
+
                 <div class="grid-2">
                     <div class="form-group">
                         <label>Amount (₹)</label>
@@ -301,21 +289,21 @@
             </form>
         </div>
 
-        <!-- Expense History Card -->
-        <div class="card card-history">
-            <div class="card-title">📋 Expense History</div>
-            <table>
-                <thead>
-                    <tr>
-                        <th>Date</th>
-                        <th>Title</th>
-                        <th>Amount</th>
-                    </tr>
-                </thead>
-                <tbody id="expenseList"></tbody>
-            </table>
-        </div>
-    </div>
+        <!-- Recent Expense History Card (10 Entries Only) -->
+<div class="card card-history">
+    <div class="card-title">📋 Recent Expenses History</div>
+    <table>
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>EXP ID</th>
+                <th>Title</th>
+                <th style="text-align: right;">Amount</th>
+            </tr>
+        </thead>
+        <tbody id="expenseList"></tbody>
+    </table>
+</div>
 
     <script src="app.js"></script>
 </body>
