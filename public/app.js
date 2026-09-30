@@ -615,3 +615,4 @@ if (downloadPdfBtn) {
             alert(`PDF Error: ${err.message}`);
         }
     });
+}
